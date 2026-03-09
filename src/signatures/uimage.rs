@@ -1,3 +1,5 @@
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
+
 use crate::common::epoch_to_string;
 use crate::extractors::uimage::extract_uimage;
 use crate::signatures::common::{
@@ -68,6 +70,27 @@ pub fn uimage_parser(file_data: &[u8], offset: usize) -> Result<SignatureResult,
 
                 return Ok(result);
             }
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Ok(uimage_header) = parse_uimage_header(&file_data[offset..]) {
+            result.description = format!(
+                "{}, header size: {} bytes, data size: {} bytes, compression: {}, CPU: {}, OS: {}, image type: {}, load address: {:#X}, entry point: {:#X}, creation time: {}, image name: \"{}\"",
+                result.description,
+                uimage_header.header_size,
+                uimage_header.data_size,
+                uimage_header.compression_type,
+                uimage_header.cpu_type,
+                uimage_header.os_type,
+                uimage_header.image_type,
+                uimage_header.load_address,
+                uimage_header.entry_point_address,
+                crate::common::epoch_to_string(uimage_header.timestamp as u32),
+                uimage_header.name
+            );
+            return Ok(result);
         }
     }
 

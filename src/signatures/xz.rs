@@ -1,3 +1,5 @@
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
+
 use crate::common::is_offset_safe;
 use crate::extractors::lzma::lzma_decompress;
 use crate::extractors::sevenzip::sevenzip_extractor;
@@ -46,8 +48,11 @@ pub fn xz_parser(file_data: &[u8], offset: usize) -> Result<SignatureResult, Sig
                     result.size += dry_run.size.unwrap();
                 // Else, report that the data is malformed and stop processing XZ streams
                 } else {
-                    // 7z may be able to at least partially extract malformed data streams
-                    result.preferred_extractor = Some(sevenzip_extractor());
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        // 7z may be able to at least partially extract malformed data streams
+                        result.preferred_extractor = Some(sevenzip_extractor());
+                    }
                     result.description = format!(
                         "{}, valid header with malformed data stream",
                         result.description

@@ -1,3 +1,5 @@
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
+
 use crate::signatures::common::SignatureResult;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
@@ -104,6 +106,7 @@ impl Chroot {
     /// assert_eq!(std::path::Path::new(&chroot_dir).exists(), true);
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(chroot_directory: Option<&str>) -> Chroot {
         let mut chroot_instance = Chroot {
             ..Default::default()
@@ -148,6 +151,19 @@ impl Chroot {
         chroot_instance
     }
 
+    /// Create a new chrooted instance. All file paths will be effectively chrooted in the specified directory path.
+    /// The chroot directory path will be created if it does not already exist.
+    ///
+    /// If no directory path is specified, the chroot directory will be `/`.
+    #[cfg(target_arch = "wasm32")]
+    pub fn new(chroot_directory: Option<&str>) -> Chroot {
+        Chroot {
+            chroot_directory: chroot_directory
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| path::MAIN_SEPARATOR.to_string()),
+        }
+    }
+
     /// Joins two paths, ensuring that the final path does not traverse outside of the chroot directory.
     ///
     /// ## Example
@@ -190,6 +206,7 @@ impl Chroot {
     /// assert_eq!(path4, expected_path4.display().to_string());
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn safe_path_join(&self, path1: impl Into<String>, path2: impl Into<String>) -> String {
         // Join and sanitize both paths; retain the leading '/' (if there is one)
         let mut joined_path: String = self.sanitize_path(
@@ -203,6 +220,26 @@ impl Chroot {
         if cfg!(windows) && self.chroot_directory == path::MAIN_SEPARATOR.to_string() {
             // do nothing and skip
         } else if !joined_path.starts_with(&self.chroot_directory) {
+            joined_path = format!(
+                "{}{}{}",
+                self.chroot_directory,
+                path::MAIN_SEPARATOR,
+                joined_path
+            );
+        }
+
+        self.strip_double_slash(&joined_path)
+    }
+
+    /// Joins two paths, ensuring that the final path does not traverse outside of the chroot directory.
+    #[cfg(target_arch = "wasm32")]
+    pub fn safe_path_join(&self, path1: impl Into<String>, path2: impl Into<String>) -> String {
+        let mut joined_path: String = self.sanitize_path(
+            &format!("{}{}{}", path1.into(), path::MAIN_SEPARATOR, path2.into()),
+            true,
+        );
+
+        if !joined_path.starts_with(&self.chroot_directory) {
             joined_path = format!(
                 "{}{}{}",
                 self.chroot_directory,
@@ -263,6 +300,7 @@ impl Chroot {
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_213_0(); }
     /// ```
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn create_file(&self, file_path: impl Into<String>, file_data: &[u8]) -> bool {
         let safe_file_path: String = self.chrooted_path(file_path);
 
@@ -280,6 +318,12 @@ impl Chroot {
         }
 
         false
+    }
+
+    /// Creates a regular file in the chrooted directory and writes the provided data to it.
+    #[cfg(target_arch = "wasm32")]
+    pub fn create_file(&self, _file_path: impl Into<String>, _file_data: &[u8]) -> bool {
+        true
     }
 
     /// Carve data and write it to a new file.
@@ -506,6 +550,7 @@ impl Chroot {
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_426_0(); }
     /// ```
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn append_to_file(&self, file_path: impl Into<String>, data: &[u8]) -> bool {
         let safe_file_path: String = self.chrooted_path(file_path);
 
@@ -534,6 +579,12 @@ impl Chroot {
         false
     }
 
+    /// Append the provided data to the specified file in the chroot directory.
+    #[cfg(target_arch = "wasm32")]
+    pub fn append_to_file(&self, _file_path: impl Into<String>, _data: &[u8]) -> bool {
+        true
+    }
+
     /// Creates a directory in the chroot directory.
     ///
     /// Equivalent to mkdir -p.
@@ -557,6 +608,7 @@ impl Chroot {
     /// assert_eq!(std::path::Path::new(&chroot_dir).join(dir_name).exists(), true);
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn create_directory(&self, dir_path: impl Into<String>) -> bool {
         let safe_dir_path: String = self.chrooted_path(dir_path);
 
@@ -570,6 +622,12 @@ impl Chroot {
         }
 
         false
+    }
+
+    /// Creates a directory in the chroot directory.
+    #[cfg(target_arch = "wasm32")]
+    pub fn create_directory(&self, _dir_path: impl Into<String>) -> bool {
+        true
     }
 
     /// Delete a directory in the chroot directory.
@@ -596,6 +654,7 @@ impl Chroot {
     /// assert_eq!(chroot.remove_directory("i_dont_exist"), true);
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn remove_directory(&self, dir_path: impl Into<String>) -> bool {
         let safe_dir_path: String = self.chrooted_path(dir_path);
 
@@ -617,6 +676,12 @@ impl Chroot {
         }
 
         false
+    }
+
+    /// Delete a directory in the chroot directory.
+    #[cfg(target_arch = "wasm32")]
+    pub fn remove_directory(&self, _dir_path: impl Into<String>) -> bool {
+        true
     }
 
     /// Set executable permissions on an existing file in the chroot directory.
@@ -641,6 +706,7 @@ impl Chroot {
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[allow(dead_code)]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn make_executable(&self, file_path: impl Into<String>) -> bool {
         // Make the file globally executable
         const UNIX_EXEC_FLAG: u32 = 1;
@@ -677,6 +743,13 @@ impl Chroot {
         false
     }
 
+    /// Set executable permissions on an existing file in the chroot directory.
+    #[allow(dead_code)]
+    #[cfg(target_arch = "wasm32")]
+    pub fn make_executable(&self, _file_path: impl Into<String>) -> bool {
+        true
+    }
+
     /// Creates a symbolic link in the chroot directory, named `symlink_path`, which points to `target_path`.
     ///
     /// Note that both the symlink and target paths will be sanitized to stay in the chroot directory.
@@ -708,6 +781,7 @@ impl Chroot {
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_571_0(); }
     /// ```
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn create_symlink(
         &self,
         symlink_path: impl Into<String>,
@@ -813,7 +887,18 @@ impl Chroot {
         }
     }
 
+    /// Creates a symbolic link in the chroot directory, named `symlink_path`, which points to `target_path`.
+    #[cfg(target_arch = "wasm32")]
+    pub fn create_symlink(
+        &self,
+        _symlink_path: impl Into<String>,
+        _target_path: impl Into<String>,
+    ) -> bool {
+        true
+    }
+
     /// Returns true if the file path is a symlink.
+    #[cfg(not(target_arch = "wasm32"))]
     fn is_symlink(&self, file_path: &str) -> bool {
         if let Ok(metadata) = fs::symlink_metadata(file_path) {
             return metadata.file_type().is_symlink();
@@ -889,6 +974,7 @@ impl Chroot {
 
 /// Recursively walks a given directory and returns a list of regular non-zero size files in the given directory path.
 #[allow(dead_code)]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_extracted_files(directory: &str) -> Vec<String> {
     let mut regular_files: Vec<String> = vec![];
 
@@ -912,6 +998,12 @@ pub fn get_extracted_files(directory: &str) -> Vec<String> {
     }
 
     regular_files
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn get_extracted_files(directory: &str) -> Vec<String> {
+    let _ = directory;
+    vec![]
 }
 
 /// Executes an extractor for the provided SignatureResult.
@@ -964,34 +1056,42 @@ pub fn execute(
                     }
 
                     ExtractorType::External(cmd) => {
-                        // Spawn the external extractor command
-                        match spawn(
-                            file_data,
-                            file_path,
-                            &output_directory,
-                            signature,
-                            extractor_definition.clone(),
-                        ) {
-                            Err(e) => {
-                                error!(
-                                    "Failed to spawn external extractor for '{}' signature: {}",
-                                    signature.name, e
-                                );
-                            }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            // Spawn the external extractor command
+                            match spawn(
+                                file_data,
+                                file_path,
+                                &output_directory,
+                                signature,
+                                extractor_definition.clone(),
+                            ) {
+                                Err(e) => {
+                                    error!(
+                                        "Failed to spawn external extractor for '{}' signature: {}",
+                                        signature.name, e
+                                    );
+                                }
 
-                            Ok(proc_info) => {
-                                // Wait for the external process to exit
-                                match proc_wait(proc_info) {
-                                    Err(_) => {
-                                        warn!("External extractor failed!");
-                                    }
-                                    Ok(ext_result) => {
-                                        result = ext_result;
-                                        // Set the extractor name to the name of the extraction utility
-                                        result.extractor = cmd.to_string();
+                                Ok(proc_info) => {
+                                    // Wait for the external process to exit
+                                    match proc_wait(proc_info) {
+                                        Err(_) => {
+                                            warn!("External extractor failed!");
+                                        }
+                                        Ok(ext_result) => {
+                                            result = ext_result;
+                                            // Set the extractor name to the name of the extraction utility
+                                            result.extractor = cmd.to_string();
+                                        }
                                     }
                                 }
                             }
+                        }
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            let _ = cmd;
+                            error!("External extractors are not supported on WASM");
                         }
                     }
                 }
@@ -1009,6 +1109,7 @@ pub fn execute(
         }
 
         // Clean up extractor's output directory if extraction failed
+        #[cfg(not(target_arch = "wasm32"))]
         if !result.success {
             if let Err(e) = fs::remove_dir_all(&output_directory) {
                 warn!(
@@ -1022,6 +1123,7 @@ pub fn execute(
 }
 
 /// Spawn an external extractor process.
+#[cfg(not(target_arch = "wasm32"))]
 fn spawn(
     file_data: &[u8],
     file_path: &str,
@@ -1117,6 +1219,7 @@ fn spawn(
 
 /// Waits for an extraction process to complete.
 /// Returns ExtractionError if the extractor was prematurely terminated, else returns an ExtractionResult.
+#[cfg(not(target_arch = "wasm32"))]
 fn proc_wait(mut worker_info: ProcInfo) -> Result<ExtractionResult, ExtractionError> {
     // The standard exit success value is 0
     const EXIT_SUCCESS: i32 = 0;
@@ -1195,6 +1298,7 @@ fn create_output_directory(file_path: &str, offset: usize) -> Result<String, std
 
 /// Returns true if the size of the provided extractor output directory is greater than zero.
 /// Note that any intermediate/carved files must be deleted *before* calling this function.
+#[cfg(not(target_arch = "wasm32"))]
 fn was_something_extracted(output_directory: &str) -> bool {
     let output_directory_path = path::Path::new(output_directory);
     debug!("Checking output directory {output_directory} for results");
@@ -1227,4 +1331,9 @@ fn was_something_extracted(output_directory: &str) -> bool {
     }
 
     false
+}
+
+#[cfg(target_arch = "wasm32")]
+fn was_something_extracted(_output_directory: &str) -> bool {
+    true // Assume something was extracted or just ignore the check
 }

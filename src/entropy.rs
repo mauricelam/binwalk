@@ -56,6 +56,7 @@ fn blocks(data: &[u8]) -> Vec<BlockEntropy> {
     entropy_blocks
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn plot(
     file_path: impl Into<String>,
     stdin: bool,
@@ -103,5 +104,17 @@ pub fn plot(
         return Ok(file_entropy);
     }
 
+    Err(EntropyError)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn plot(
+    file_path: impl Into<String>,
+    stdin: bool,
+    out_file: Option<String>,
+) -> Result<FileEntropy, EntropyError> {
+    let _ = file_path;
+    let _ = stdin;
+    let _ = out_file;
     Err(EntropyError)
 }

@@ -1,3 +1,5 @@
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
+
 use crate::extractors::common::{Chroot, ExtractionResult, Extractor, ExtractorType};
 
 /// Defines the internal extractor function for decrypting known encrypted firmware
@@ -30,6 +32,7 @@ pub fn encfw_extractor() -> Extractor {
 }
 
 /// Attempts to decrypt known encrypted firmware images
+#[cfg(not(target_arch = "wasm32"))]
 pub fn encfw_decrypt(
     file_data: &[u8],
     offset: usize,
@@ -52,4 +55,15 @@ pub fn encfw_decrypt(
     }
 
     result
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn encfw_decrypt(
+    _file_data: &[u8],
+    _offset: usize,
+    _output_directory: Option<&str>,
+) -> ExtractionResult {
+    ExtractionResult {
+        ..Default::default()
+    }
 }

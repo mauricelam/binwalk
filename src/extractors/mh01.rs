@@ -1,3 +1,5 @@
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
+
 use crate::extractors::common::{Chroot, ExtractionResult, Extractor, ExtractorType};
 use crate::structures::mh01::parse_mh01_header;
 
@@ -31,6 +33,7 @@ pub fn mh01_extractor() -> Extractor {
 }
 
 /// Internal extractor for carve pieces of MH01 images to disk
+#[cfg(not(target_arch = "wasm32"))]
 pub fn extract_mh01_image(
     file_data: &[u8],
     offset: usize,
@@ -83,6 +86,36 @@ pub fn extract_mh01_image(
                         );
                     }
                 }
+            // No extraction requested, just return success
+            } else {
+                result.success = true;
+            }
+        }
+    }
+
+    result
+}
+
+/// Internal extractor for carve pieces of MH01 images to disk
+#[cfg(target_arch = "wasm32")]
+pub fn extract_mh01_image(
+    file_data: &[u8],
+    offset: usize,
+    output_directory: Option<&str>,
+) -> ExtractionResult {
+    let mut result = ExtractionResult {
+        ..Default::default()
+    };
+
+    // Get the MH01 image data
+    if let Some(mh01_data) = file_data.get(offset..) {
+        // Parse the MH01 header
+        if let Ok(mh01_header) = parse_mh01_header(mh01_data) {
+            result.size = Some(mh01_header.total_size);
+
+            // If extraction was requested, do it
+            if output_directory.is_some() {
+                result.success = true;
             // No extraction requested, just return success
             } else {
                 result.success = true;

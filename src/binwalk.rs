@@ -1,3 +1,4 @@
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
 //! Primary Binwalk interface.
 
 use aho_corasick::AhoCorasick;
@@ -142,49 +143,57 @@ impl Binwalk {
 
         // Target file is optional, especially if being called via the library
         if let Some(target_file) = target_file_name {
-            // Set the target file path, make it an absolute path
-            match path::absolute(&target_file) {
-                Err(_) => {
-                    return Err(BinwalkError::new(&format!(
-                        "Failed to get absolute path for '{target_file}'"
-                    )));
-                }
-                Ok(abspath) => {
-                    new_instance.base_target_file = abspath.display().to_string();
-                }
-            }
-
-            // If an output extraction directory was also specified, initialize it
-            if let Some(extraction_directory) = output_directory {
-                // Make the extraction directory an absolute path
-                match path::absolute(&extraction_directory) {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                // Set the target file path, make it an absolute path
+                match path::absolute(&target_file) {
                     Err(_) => {
                         return Err(BinwalkError::new(&format!(
-                            "Failed to get absolute path for '{extraction_directory}'"
+                            "Failed to get absolute path for '{target_file}'"
                         )));
                     }
                     Ok(abspath) => {
-                        new_instance.base_output_directory = abspath.display().to_string();
+                        new_instance.base_target_file = abspath.display().to_string();
                     }
                 }
 
-                // Initialize the extraction directory. This will create the directory if it
-                // does not exist, and create a symlink inside the directory that points to
-                // the specified target file.
-                match init_extraction_directory(
-                    &new_instance.base_target_file,
-                    &new_instance.base_output_directory,
-                ) {
-                    Err(e) => {
-                        return Err(BinwalkError::new(&format!(
-                            "Failed to initialize extraction directory: {e}"
-                        )));
+                // If an output extraction directory was also specified, initialize it
+                if let Some(extraction_directory) = output_directory {
+                    // Make the extraction directory an absolute path
+                    match path::absolute(&extraction_directory) {
+                        Err(_) => {
+                            return Err(BinwalkError::new(&format!(
+                                "Failed to get absolute path for '{extraction_directory}'"
+                            )));
+                        }
+                        Ok(abspath) => {
+                            new_instance.base_output_directory = abspath.display().to_string();
+                        }
                     }
-                    Ok(new_target_file_path) => {
-                        // This is the new base target path (a symlink inside the extraction directory)
-                        new_instance.base_target_file = new_target_file_path.clone();
+
+                    // Initialize the extraction directory. This will create the directory if it
+                    // does not exist, and create a symlink inside the directory that points to
+                    // the specified target file.
+                    match init_extraction_directory(
+                        &new_instance.base_target_file,
+                        &new_instance.base_output_directory,
+                    ) {
+                        Err(e) => {
+                            return Err(BinwalkError::new(&format!(
+                                "Failed to initialize extraction directory: {e}"
+                            )));
+                        }
+                        Ok(new_target_file_path) => {
+                            // This is the new base target path (a symlink inside the extraction directory)
+                            new_instance.base_target_file = new_target_file_path.clone();
+                        }
                     }
                 }
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                new_instance.base_target_file = target_file;
+                new_instance.base_output_directory = output_directory.unwrap_or_default();
             }
         }
 
@@ -805,6 +814,7 @@ impl Binwalk {
 }
 
 /// Initializes the extraction output directory
+#[cfg(not(target_arch = "wasm32"))]
 fn init_extraction_directory(
     target_file: &str,
     extraction_directory: &str,

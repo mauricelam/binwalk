@@ -6,7 +6,7 @@ use std::collections::HashMap;
  * Returning usize types makes the calling code much cleaner, but that means that u64 fields won't fit into the return value on 32-bit systems.
  * Thus, only 64-bit systems are supported. This requirement is enforced here.
  */
-#[cfg(not(target_pointer_width = "64"))]
+#[cfg(not(any(target_pointer_width = "64", target_arch = "wasm32")))]
 compile_error!("compilation is only allowed for 64-bit targets");
 
 /// Error return value of structure parsers

@@ -1,3 +1,8 @@
+#[cfg(target_arch = "wasm32")]
+compile_error!(
+    "The binwalk CLI is not supported on WASM targets. Use the binwalk library instead."
+);
+
 use binwalk::AnalysisResults;
 use log::{debug, error, info};
 use std::collections::VecDeque;

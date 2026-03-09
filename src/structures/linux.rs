@@ -63,7 +63,7 @@ pub fn parse_linux_arm64_boot_image_header(
     img_data: &[u8],
 ) -> Result<LinuxARM64BootHeader, StructureError> {
     const PE: &[u8] = b"PE";
-    const FLAGS_RESERVED_MASK: usize =
+    const FLAGS_RESERVED_MASK: u64 =
         0b11111111_11111111_11111111_11111111_11111111_11111111_11111111_11110000;
     const FLAGS_ENDIAN_MASK: usize = 1;
     const BIG_ENDIAN: usize = 1;
@@ -102,7 +102,7 @@ pub fn parse_linux_arm64_boot_image_header(
                 // There should be a PE header here
                 if pe_data == PE {
                     // Make sure the reserved flag bits are not set
-                    if (img_header["flags"] & FLAGS_RESERVED_MASK) == 0 {
+                    if (img_header["flags"] as u64 & FLAGS_RESERVED_MASK) == 0 {
                         // Determine the endianness from the flags field
                         if (img_header["flags"] & FLAGS_ENDIAN_MASK) == BIG_ENDIAN {
                             result.endianness = "big".to_string();
