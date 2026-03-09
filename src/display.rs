@@ -16,12 +16,19 @@ const COLUMN1_WIDTH: usize = 35;
 const COLUMN2_WIDTH: usize = 35;
 
 fn terminal_width() -> usize {
-    let terminal_width: u16 = match termsize::get() {
-        Some(ts) => ts.cols,
-        None => DEFAULT_TERMINAL_WIDTH,
-    };
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let terminal_width: u16 = match termsize::get() {
+            Some(ts) => ts.cols,
+            None => DEFAULT_TERMINAL_WIDTH,
+        };
 
-    terminal_width as usize
+        terminal_width as usize
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        DEFAULT_TERMINAL_WIDTH as usize
+    }
 }
 
 fn line_delimiter() -> String {
@@ -66,7 +73,7 @@ fn pad_to_length(text: &str, len: usize) -> String {
     }
 
     if pad_size < 0 {
-        pad_size = 0;
+        padding_width = 0;
     }
 
     for _i in 0..pad_size {

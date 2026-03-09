@@ -11,7 +11,7 @@ pub struct LZMAHeader {
 /// Parse an LZMA header
 pub fn parse_lzma_header(lzma_data: &[u8]) -> Result<LZMAHeader, StructureError> {
     // Streamed data has a reported size of -1
-    const LZMA_STREAM_SIZE: usize = 0xFFFFFFFFFFFFFFFF;
+    const LZMA_STREAM_SIZE: u64 = 0xFFFFFFFFFFFFFFFF;
 
     // Some sane min and max values on the reported decompressed data size
     const MIN_SUPPORTED_DECOMPRESSED_SIZE: usize = 256;
@@ -34,7 +34,7 @@ pub fn parse_lzma_header(lzma_data: &[u8]) -> Result<LZMAHeader, StructureError>
         if lzma_header["null_byte"] == 0 {
             // Sanity check the reported decompressed size
             if lzma_header["decompressed_size"] >= MIN_SUPPORTED_DECOMPRESSED_SIZE
-                && (lzma_header["decompressed_size"] == LZMA_STREAM_SIZE
+                && (lzma_header["decompressed_size"] as u64 == LZMA_STREAM_SIZE
                     || lzma_header["decompressed_size"] <= MAX_SUPPORTED_DECOMPRESSED_SIZE)
             {
                 lzma_hdr_info.properties = lzma_header["properties"];

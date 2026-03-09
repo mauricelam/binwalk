@@ -1,4 +1,5 @@
 use crate::common::epoch_to_string;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::extractors::squashfs::{
     squashfs_be_extractor, squashfs_le_extractor, squashfs_v4_be_extractor,
 };
@@ -93,12 +94,15 @@ pub fn squashfs_parser(file_data: &[u8], offset: usize) -> Result<SignatureResul
                                     .to_string();
 
                                 // Select the appropriate extractor to use
-                                if squashfs_header.endianness == "little" {
-                                    result.preferred_extractor = Some(squashfs_le_extractor());
-                                } else if squashfs_header.major_version == SQUASHFSV4 {
-                                    result.preferred_extractor = Some(squashfs_v4_be_extractor());
-                                } else {
-                                    result.preferred_extractor = Some(squashfs_be_extractor());
+                                #[cfg(not(target_arch = "wasm32"))]
+                                {
+                                    if squashfs_header.endianness == "little" {
+                                        result.preferred_extractor = Some(squashfs_le_extractor());
+                                    } else if squashfs_header.major_version == SQUASHFSV4 {
+                                        result.preferred_extractor = Some(squashfs_v4_be_extractor());
+                                    } else {
+                                        result.preferred_extractor = Some(squashfs_be_extractor());
+                                    }
                                 }
 
                                 result.size = squashfs_header.image_size;

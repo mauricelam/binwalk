@@ -1,3 +1,4 @@
+#![cfg(not(target_arch = "wasm32"))]
 use binwalk::AnalysisResults;
 use log::{debug, error, info};
 use std::collections::VecDeque;

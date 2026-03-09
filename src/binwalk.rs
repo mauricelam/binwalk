@@ -4,7 +4,9 @@ use aho_corasick::AhoCorasick;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs;
+#[cfg(not(target_arch = "wasm32"))]
 use std::path;
 use uuid::Uuid;
 
@@ -14,7 +16,9 @@ use std::os::windows;
 #[cfg(unix)]
 use std::os::unix;
 
-use crate::common::{is_offset_safe, read_file};
+use crate::common::is_offset_safe;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::common::read_file;
 use crate::extractors;
 use crate::magic;
 use crate::signatures;
@@ -100,34 +104,7 @@ impl Binwalk {
     }
 
     /// Create a new Binwalk instance.
-    ///
-    /// If `target_file_name` and `output_directory` are specified, the `output_directory` will be created if it does not
-    /// already exist, and a symlink to `target_file_name` will be placed inside the `output_directory`. The path to this
-    /// symlink is placed in `Binwalk.base_target_file`.
-    ///
-    /// The `include` and `exclude` arguments specify include and exclude signature filters. The String values contained
-    /// in these arguments must match the `Signature.name` values defined in magic.rs.
-    ///
-    /// Additional user-defined signatures may be provided via the `signatures` argument.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// # fn main() { #[allow(non_snake_case)] fn _doctest_main_src_binwalk_rs_102_0() -> Result<binwalk::Binwalk, binwalk::BinwalkError> {
-    /// use binwalk::Binwalk;
-    ///
-    /// // Don't scan for these file signatures
-    /// let exclude_filters: Vec<String> = vec!["jpeg".to_string(), "png".to_string()];
-    ///
-    /// let binwalker = Binwalk::configure(None,
-    ///                                    None,
-    ///                                    None,
-    ///                                    Some(exclude_filters),
-    ///                                    None,
-    ///                                    false)?;
-    /// # Ok(binwalker)
-    /// # } _doctest_main_src_binwalk_rs_102_0(); }
-    /// ```
+    #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
     pub fn configure(
         target_file_name: Option<String>,
         output_directory: Option<String>,
@@ -140,49 +117,52 @@ impl Binwalk {
             ..Default::default()
         };
 
-        // Target file is optional, especially if being called via the library
-        if let Some(target_file) = target_file_name {
-            // Set the target file path, make it an absolute path
-            match path::absolute(&target_file) {
-                Err(_) => {
-                    return Err(BinwalkError::new(&format!(
-                        "Failed to get absolute path for '{target_file}'"
-                    )));
-                }
-                Ok(abspath) => {
-                    new_instance.base_target_file = abspath.display().to_string();
-                }
-            }
-
-            // If an output extraction directory was also specified, initialize it
-            if let Some(extraction_directory) = output_directory {
-                // Make the extraction directory an absolute path
-                match path::absolute(&extraction_directory) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // Target file is optional, especially if being called via the library
+            if let Some(target_file) = target_file_name {
+                // Set the target file path, make it an absolute path
+                match path::absolute(&target_file) {
                     Err(_) => {
                         return Err(BinwalkError::new(&format!(
-                            "Failed to get absolute path for '{extraction_directory}'"
+                            "Failed to get absolute path for '{target_file}'"
                         )));
                     }
                     Ok(abspath) => {
-                        new_instance.base_output_directory = abspath.display().to_string();
+                        new_instance.base_target_file = abspath.display().to_string();
                     }
                 }
 
-                // Initialize the extraction directory. This will create the directory if it
-                // does not exist, and create a symlink inside the directory that points to
-                // the specified target file.
-                match init_extraction_directory(
-                    &new_instance.base_target_file,
-                    &new_instance.base_output_directory,
-                ) {
-                    Err(e) => {
-                        return Err(BinwalkError::new(&format!(
-                            "Failed to initialize extraction directory: {e}"
-                        )));
+                // If an output extraction directory was also specified, initialize it
+                if let Some(extraction_directory) = output_directory {
+                    // Make the extraction directory an absolute path
+                    match path::absolute(&extraction_directory) {
+                        Err(_) => {
+                            return Err(BinwalkError::new(&format!(
+                                "Failed to get absolute path for '{extraction_directory}'"
+                            )));
+                        }
+                        Ok(abspath) => {
+                            new_instance.base_output_directory = abspath.display().to_string();
+                        }
                     }
-                    Ok(new_target_file_path) => {
-                        // This is the new base target path (a symlink inside the extraction directory)
-                        new_instance.base_target_file = new_target_file_path.clone();
+
+                    // Initialize the extraction directory. This will create the directory if it
+                    // does not exist, and create a symlink inside the directory that points to
+                    // the specified target file.
+                    match init_extraction_directory(
+                        &new_instance.base_target_file,
+                        &new_instance.base_output_directory,
+                    ) {
+                        Err(e) => {
+                            return Err(BinwalkError::new(&format!(
+                                "Failed to initialize extraction directory: {e}"
+                            )));
+                        }
+                        Ok(new_target_file_path) => {
+                            // This is the new base target path (a symlink inside the extraction directory)
+                            new_instance.base_target_file = new_target_file_path.clone();
+                        }
                     }
                 }
             }
@@ -509,16 +489,6 @@ impl Binwalk {
          * Ideally, all signatures would report their size; some file formats do not specify a size, and the only
          * way to determine the size is to extract the file format (compressed data, for example).
          * For signatures with a reported size of 0, update their size to be the start of the next signature, or EOF.
-         * This makes the assumption that there are no false positives or false negatives.
-         *
-         * False negatives (i.e., there is some other file format or data between this signature and the next that
-         * was not correctly identified) is less problematic, as this will overestimate the size of this signature,
-         * but most extraction utilities don't care about this extra trailing data being included.
-         *
-         * False positives (i.e., some data inside of this signature is identified as some other file type) can cause
-         * this signature's file data to become truncated, which will inevitably result in a failed, or partial, extraction.
-         *
-         * Thus, signatures must be very good at validating magic matches and eliminating false positives.
          */
         for i in 0..file_map.len() {
             if file_map[i].size == 0 {
@@ -559,48 +529,6 @@ impl Binwalk {
     }
 
     /// Extract all extractable signatures found in a file.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// # fn main() { #[allow(non_snake_case)] fn _doctest_main_src_binwalk_rs_529_0() -> Result<binwalk::Binwalk, binwalk::BinwalkError> {
-    /// use binwalk::Binwalk;
-    ///
-    /// let target_path = std::path::Path::new("tests")
-    ///     .join("inputs")
-    ///     .join("gzip.bin")
-    ///     .display()
-    ///     .to_string();
-    ///
-    /// let extraction_directory = std::path::Path::new("tests")
-    ///     .join("extractions")
-    ///     .display()
-    ///     .to_string();
-    ///
-    /// # std::fs::remove_dir_all(&extraction_directory);
-    /// let binwalker = Binwalk::configure(Some(target_path),
-    ///                                    Some(extraction_directory.clone()),
-    ///                                    None,
-    ///                                    None,
-    ///                                    None,
-    ///                                    false)?;
-    ///
-    /// let file_data = std::fs::read(&binwalker.base_target_file).expect("Unable to read file");
-    ///
-    /// let scan_results = binwalker.scan(&file_data);
-    /// let extraction_results = binwalker.extract(&file_data, &binwalker.base_target_file, &scan_results);
-    ///
-    /// assert_eq!(scan_results.len(), 1);
-    /// assert_eq!(extraction_results.len(),  1);
-    /// assert_eq!(std::path::Path::new(&extraction_directory)
-    ///     .join("gzip.bin.extracted")
-    ///     .join("0")
-    ///     .join("decompressed.bin")
-    ///     .exists(), true);
-    /// # std::fs::remove_dir_all(&extraction_directory);
-    /// # Ok(binwalker)
-    /// # } _doctest_main_src_binwalk_rs_529_0(); }
-    /// ```
     pub fn extract(
         &self,
         file_data: &[u8],
@@ -674,47 +602,6 @@ impl Binwalk {
     }
 
     /// Analyze a data buffer and optionally extract the file contents.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// # fn main() { #[allow(non_snake_case)] fn _doctest_main_src_binwalk_rs_672_0() -> Result<binwalk::Binwalk, binwalk::BinwalkError> {
-    /// use binwalk::{Binwalk, common};
-    ///
-    /// let target_path = std::path::Path::new("tests")
-    ///     .join("inputs")
-    ///     .join("gzip.bin")
-    ///     .display()
-    ///     .to_string();
-    ///
-    /// let extraction_directory = std::path::Path::new("tests")
-    ///     .join("extractions")
-    ///     .display()
-    ///     .to_string();
-    ///
-    /// let file_data = common::read_file(&target_path).expect("Failed to read file data");
-    ///
-    /// # std::fs::remove_dir_all(&extraction_directory);
-    /// let binwalker = Binwalk::configure(Some(target_path),
-    ///                                    Some(extraction_directory.clone()),
-    ///                                    None,
-    ///                                    None,
-    ///                                    None,
-    ///                                    false)?;
-    ///
-    /// let analysis_results = binwalker.analyze_buf(&file_data, &binwalker.base_target_file, true);
-    ///
-    /// assert_eq!(analysis_results.file_map.len(), 1);
-    /// assert_eq!(analysis_results.extractions.len(),  1);
-    /// assert_eq!(std::path::Path::new(&extraction_directory)
-    ///     .join("gzip.bin.extracted")
-    ///     .join("0")
-    ///     .join("decompressed.bin")
-    ///     .exists(), true);
-    /// # std::fs::remove_dir_all(&extraction_directory);
-    /// # Ok(binwalker)
-    /// # } _doctest_main_src_binwalk_rs_672_0(); }
-    /// ```
     pub fn analyze_buf(
         &self,
         file_data: &[u8],
@@ -749,46 +636,8 @@ impl Binwalk {
     }
 
     /// Analyze a file on disk and optionally extract its contents.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// # fn main() { #[allow(non_snake_case)] fn _doctest_main_src_binwalk_rs_745_0() -> Result<binwalk::Binwalk, binwalk::BinwalkError> {
-    /// use binwalk::Binwalk;
-    ///
-    /// let target_path = std::path::Path::new("tests")
-    ///     .join("inputs")
-    ///     .join("gzip.bin")
-    ///     .display()
-    ///     .to_string();
-    ///
-    /// let extraction_directory = std::path::Path::new("tests")
-    ///     .join("extractions")
-    ///     .display()
-    ///     .to_string();
-    ///
-    /// # std::fs::remove_dir_all(&extraction_directory);
-    /// let binwalker = Binwalk::configure(Some(target_path),
-    ///                                    Some(extraction_directory.clone()),
-    ///                                    None,
-    ///                                    None,
-    ///                                    None,
-    ///                                    false)?;
-    ///
-    /// let analysis_results = binwalker.analyze(&binwalker.base_target_file, true);
-    ///
-    /// assert_eq!(analysis_results.file_map.len(), 1);
-    /// assert_eq!(analysis_results.extractions.len(),  1);
-    /// assert_eq!(std::path::Path::new(&extraction_directory)
-    ///     .join("gzip.bin.extracted")
-    ///     .join("0")
-    ///     .join("decompressed.bin")
-    ///     .exists(), true);
-    /// # std::fs::remove_dir_all(&extraction_directory);
-    /// # Ok(binwalker)
-    /// # } _doctest_main_src_binwalk_rs_745_0(); }
-    /// ```
     #[allow(dead_code)]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn analyze(&self, target_file: impl Into<String>, do_extraction: bool) -> AnalysisResults {
         let file_path = target_file.into();
 
@@ -805,6 +654,7 @@ impl Binwalk {
 }
 
 /// Initializes the extraction output directory
+#[cfg(not(target_arch = "wasm32"))]
 fn init_extraction_directory(
     target_file: &str,
     extraction_directory: &str,

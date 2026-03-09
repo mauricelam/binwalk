@@ -35,20 +35,31 @@ pub fn encfw_decrypt(
     offset: usize,
     output_directory: Option<&str>,
 ) -> ExtractionResult {
+    #[cfg(not(target_arch = "wasm32"))]
     const OUTPUT_FILE_NAME: &str = "decrypted.bin";
 
     let mut result = ExtractionResult {
         ..Default::default()
     };
 
-    if let Ok(decrypted_data) = delink::decrypt(&file_data[offset..]) {
-        result.success = true;
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Ok(decrypted_data) = delink::decrypt(&file_data[offset..]) {
+            result.success = true;
 
-        // Write to file, if requested
-        if output_directory.is_some() {
-            let chroot = Chroot::new(output_directory);
-            result.success = chroot.create_file(OUTPUT_FILE_NAME, &decrypted_data);
+            // Write to file, if requested
+            if output_directory.is_some() {
+                let chroot = Chroot::new(output_directory);
+                result.success = chroot.create_file(OUTPUT_FILE_NAME, &decrypted_data);
+            }
         }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = file_data;
+        let _ = offset;
+        let _ = output_directory;
     }
 
     result

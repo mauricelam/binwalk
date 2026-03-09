@@ -1,7 +1,9 @@
 use crate::common::read_input;
 use entropy::shannon_entropy;
 use plotly::layout::{Axis, Layout};
-use plotly::{ImageFormat, Plot, Scatter};
+use plotly::{Plot, Scatter};
+#[cfg(not(target_arch = "wasm32"))]
+use plotly::ImageFormat;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -56,6 +58,7 @@ fn blocks(data: &[u8]) -> Vec<BlockEntropy> {
     entropy_blocks
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn plot(
     file_path: impl Into<String>,
     stdin: bool,
@@ -103,5 +106,14 @@ pub fn plot(
         return Ok(file_entropy);
     }
 
+    Err(EntropyError)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn plot(
+    _file_path: impl Into<String>,
+    _stdin: bool,
+    _out_file: Option<String>,
+) -> Result<FileEntropy, EntropyError> {
     Err(EntropyError)
 }

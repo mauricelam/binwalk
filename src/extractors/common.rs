@@ -1,10 +1,14 @@
 use crate::signatures::common::SignatureResult;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs;
 use std::io::Write;
+#[cfg(not(target_arch = "wasm32"))]
 use std::path;
+#[cfg(not(target_arch = "wasm32"))]
 use std::process;
+#[cfg(not(target_arch = "wasm32"))]
 use walkdir::WalkDir;
 
 #[cfg(windows)]
@@ -68,6 +72,7 @@ pub struct ExtractionResult {
 
 /// Stores information about external extractor processes. For internal use only.
 #[derive(Debug)]
+#[cfg(not(target_arch = "wasm32"))]
 pub struct ProcInfo {
     pub child: process::Child,
     pub exit_codes: Vec<i32>,
@@ -97,55 +102,67 @@ impl Chroot {
     ///     .display()
     ///     .to_string();
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(&chroot.chroot_directory, &chroot_dir);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::path::Path::new(&chroot_dir).exists(), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
     pub fn new(chroot_directory: Option<&str>) -> Chroot {
-        let mut chroot_instance = Chroot {
-            ..Default::default()
-        };
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut chroot_instance = Chroot {
+                ..Default::default()
+            };
 
-        match chroot_directory {
-            None => {
-                // Default path is '/'
-                chroot_instance.chroot_directory = path::MAIN_SEPARATOR.to_string();
-            }
-            Some(chroot_dir) => {
-                // Attempt to ensure that the specified path is absolute. If this fails, just use the path as given.
-                match path::absolute(chroot_dir) {
-                    Ok(pathbuf) => {
-                        chroot_instance.chroot_directory = pathbuf.display().to_string();
-                    }
-                    Err(_) => {
-                        chroot_instance.chroot_directory = chroot_dir.to_string();
+            match chroot_directory {
+                None => {
+                    // Default path is '/'
+                    chroot_instance.chroot_directory = path::MAIN_SEPARATOR.to_string();
+                }
+                Some(chroot_dir) => {
+                    // Attempt to ensure that the specified path is absolute. If this fails, just use the path as given.
+                    match path::absolute(chroot_dir) {
+                        Ok(pathbuf) => {
+                            chroot_instance.chroot_directory = pathbuf.display().to_string();
+                        }
+                        Err(_) => {
+                            chroot_instance.chroot_directory = chroot_dir.to_string();
+                        }
                     }
                 }
+            }
+
+            // Create the chroot directory if it does not exist
+            if !path::Path::new(&chroot_instance.chroot_directory).exists() {
+                match fs::create_dir_all(&chroot_instance.chroot_directory) {
+                    Ok(_) => {
+                        debug!(
+                            "Created new chroot directory {}",
+                            chroot_instance.chroot_directory
+                        );
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to create chroot directory {}: {}",
+                            chroot_instance.chroot_directory, e
+                        );
+                    }
+                }
+            }
+
+            chroot_instance
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+             Chroot {
+                chroot_directory: chroot_directory.unwrap_or("/").to_string(),
             }
         }
-
-        // Create the chroot directory if it does not exist
-        if !path::Path::new(&chroot_instance.chroot_directory).exists() {
-            match fs::create_dir_all(&chroot_instance.chroot_directory) {
-                Ok(_) => {
-                    debug!(
-                        "Created new chroot directory {}",
-                        chroot_instance.chroot_directory
-                    );
-                }
-                Err(e) => {
-                    error!(
-                        "Failed to create chroot directory {}: {}",
-                        chroot_instance.chroot_directory, e
-                    );
-                }
-            }
-        }
-
-        chroot_instance
     }
 
     /// Joins two paths, ensuring that the final path does not traverse outside of the chroot directory.
@@ -161,11 +178,13 @@ impl Chroot {
     ///     .display()
     ///     .to_string();
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// let dir_name = "etc";
     /// let file_name = "passwd";
+    /// # #[cfg(not(target_arch = "wasm32"))] {
     /// let abs_path = format!("{}{}{}{}", MAIN_SEPARATOR, dir_name, MAIN_SEPARATOR, file_name);
     /// let abs_path_dir = format!("{}{}", MAIN_SEPARATOR, dir_name);
     /// let rel_path_dir = format!("..{}..{}..{}{}", MAIN_SEPARATOR, MAIN_SEPARATOR, MAIN_SEPARATOR, dir_name);
@@ -188,30 +207,39 @@ impl Chroot {
     /// assert_eq!(path2, expected_path2.display().to_string());
     /// assert_eq!(path3, expected_path3.display().to_string());
     /// assert_eq!(path4, expected_path4.display().to_string());
+    /// # }
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
     pub fn safe_path_join(&self, path1: impl Into<String>, path2: impl Into<String>) -> String {
-        // Join and sanitize both paths; retain the leading '/' (if there is one)
-        let mut joined_path: String = self.sanitize_path(
-            &format!("{}{}{}", path1.into(), path::MAIN_SEPARATOR, path2.into()),
-            true,
-        );
-
-        // If the joined path does not start with the chroot directory,
-        // prepend the chroot directory to the final joined path.
-        // on Windows: If no chroot directory is specified, skip the operation
-        if cfg!(windows) && self.chroot_directory == path::MAIN_SEPARATOR.to_string() {
-            // do nothing and skip
-        } else if !joined_path.starts_with(&self.chroot_directory) {
-            joined_path = format!(
-                "{}{}{}",
-                self.chroot_directory,
-                path::MAIN_SEPARATOR,
-                joined_path
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // Join and sanitize both paths; retain the leading '/' (if there is one)
+            let mut joined_path: String = self.sanitize_path(
+                &format!("{}{}{}", path1.into(), path::MAIN_SEPARATOR, path2.into()),
+                true,
             );
-        }
 
-        self.strip_double_slash(&joined_path)
+            // If the joined path does not start with the chroot directory,
+            // prepend the chroot directory to the final joined path.
+            // on Windows: If no chroot directory is specified, skip the operation
+            if cfg!(windows) && self.chroot_directory == path::MAIN_SEPARATOR.to_string() {
+                // do nothing and skip
+            } else if !joined_path.starts_with(&self.chroot_directory) {
+                joined_path = format!(
+                    "{}{}{}",
+                    self.chroot_directory,
+                    path::MAIN_SEPARATOR,
+                    joined_path
+                );
+            }
+
+            self.strip_double_slash(&joined_path)
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+             format!("{}/{}", path1.into(), path2.into()).replace("//", "/")
+        }
     }
 
     /// Given a file path, returns a sanitized path that is chrooted inside the specified chroot directory.
@@ -231,6 +259,7 @@ impl Chroot {
     /// let chroot = Chroot::new(Some(&chroot_dir));
     /// let path = chroot.chrooted_path(file_name);
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(path, std::path::Path::new(&chroot_dir).join(file_name).display().to_string());
     /// ```
     pub fn chrooted_path(&self, file_path: impl Into<String>) -> String {
@@ -254,32 +283,44 @@ impl Chroot {
     ///     .display()
     ///     .to_string();
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_file(file_name, file_data), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name))?, std::str::from_utf8(file_data)?);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_213_0(); }
     /// ```
     pub fn create_file(&self, file_path: impl Into<String>, file_data: &[u8]) -> bool {
-        let safe_file_path: String = self.chrooted_path(file_path);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let safe_file_path: String = self.chrooted_path(file_path);
 
-        if !path::Path::new(&safe_file_path).exists() {
-            match fs::write(safe_file_path.clone(), file_data) {
-                Ok(_) => {
-                    return true;
+            if !path::Path::new(&safe_file_path).exists() {
+                match fs::write(safe_file_path.clone(), file_data) {
+                    Ok(_) => {
+                        return true;
+                    }
+                    Err(e) => {
+                        error!("Failed to write data to {safe_file_path}: {e}");
+                    }
                 }
-                Err(e) => {
-                    error!("Failed to write data to {safe_file_path}: {e}");
-                }
+            } else {
+                error!("Failed to create file {safe_file_path}: path already exists");
             }
-        } else {
-            error!("Failed to create file {safe_file_path}: path already exists");
-        }
 
-        false
+            false
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = file_path;
+            let _ = file_data;
+            true
+        }
     }
 
     /// Carve data and write it to a new file.
@@ -301,11 +342,14 @@ impl Chroot {
     ///     .display()
     ///     .to_string();
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.carve_file(file_name, data, 0, CARVE_SIZE), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name))?, std::str::from_utf8(&data[0..CARVE_SIZE])?);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// # Ok(())
     /// } _doctest_main_src_extractors_common_rs_255_0(); }
@@ -364,11 +408,14 @@ impl Chroot {
     /// let dev_minor: usize = 2;
     /// let file_name = "char_device";
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_character_device(file_name, dev_major, dev_minor), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name))?, "c 1 2");
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_312_0(); }
@@ -401,11 +448,14 @@ impl Chroot {
     /// let dev_minor: usize = 2;
     /// let file_name = "block_device";
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_block_device(file_name, dev_major, dev_minor), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name))?, "b 1 2");
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_345_0(); }
@@ -436,11 +486,14 @@ impl Chroot {
     ///
     /// let file_name = "fifo_file";
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_fifo(file_name), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name))?, "fifo");
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_377_0(); }
@@ -466,11 +519,14 @@ impl Chroot {
     ///
     /// let file_name = "socket_file";
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_socket(file_name), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name))?, "socket");
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_401_0(); }
@@ -497,41 +553,53 @@ impl Chroot {
     /// let file_data: &[u8] = b"foobar";
     /// let file_name = "append.txt";
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.append_to_file(file_name, file_data), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name))?, std::str::from_utf8(file_data)?);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_426_0(); }
     /// ```
     pub fn append_to_file(&self, file_path: impl Into<String>, data: &[u8]) -> bool {
-        let safe_file_path: String = self.chrooted_path(file_path);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let safe_file_path: String = self.chrooted_path(file_path);
 
-        if !self.is_symlink(&safe_file_path) {
-            match fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(safe_file_path.clone())
-            {
-                Err(e) => {
-                    error!("Failed to open file '{safe_file_path}' for appending: {e}");
-                }
-                Ok(mut fp) => match fp.write(data) {
+            if !self.is_symlink(&safe_file_path) {
+                match fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(safe_file_path.clone())
+                {
                     Err(e) => {
-                        error!("Failed to append to file '{safe_file_path}': {e}");
+                        error!("Failed to open file '{safe_file_path}' for appending: {e}");
                     }
-                    Ok(_) => {
-                        return true;
-                    }
-                },
+                    Ok(mut fp) => match fp.write(data) {
+                        Err(e) => {
+                            error!("Failed to append to file '{safe_file_path}': {e}");
+                        }
+                        Ok(_) => {
+                            return true;
+                        }
+                    },
+                }
+            } else {
+                error!("Attempted to append data to a symlink: {safe_file_path}");
             }
-        } else {
-            error!("Attempted to append data to a symlink: {safe_file_path}");
-        }
 
-        false
+            false
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = file_path;
+            let _ = data;
+            true
+        }
     }
 
     /// Creates a directory in the chroot directory.
@@ -550,26 +618,37 @@ impl Chroot {
     ///
     /// let dir_name = "my_directory";
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_directory(dir_name), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::path::Path::new(&chroot_dir).join(dir_name).exists(), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
     pub fn create_directory(&self, dir_path: impl Into<String>) -> bool {
-        let safe_dir_path: String = self.chrooted_path(dir_path);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let safe_dir_path: String = self.chrooted_path(dir_path);
 
-        match fs::create_dir_all(safe_dir_path.clone()) {
-            Ok(_) => {
-                return true;
+            match fs::create_dir_all(safe_dir_path.clone()) {
+                Ok(_) => {
+                    return true;
+                }
+                Err(e) => {
+                    error!("Failed to create output directory {safe_dir_path}: {e}");
+                }
             }
-            Err(e) => {
-                error!("Failed to create output directory {safe_dir_path}: {e}");
-            }
+
+            false
         }
-
-        false
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = dir_path;
+            true
+        }
     }
 
     /// Delete a directory in the chroot directory.
@@ -588,35 +667,45 @@ impl Chroot {
     ///
     /// let dir_name = "my_directory";
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_directory(dir_name), true);
     /// assert_eq!(chroot.remove_directory(dir_name), true);
     /// assert_eq!(chroot.remove_directory("i_dont_exist"), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
     pub fn remove_directory(&self, dir_path: impl Into<String>) -> bool {
-        let safe_dir_path: String = self.chrooted_path(dir_path);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let safe_dir_path: String = self.chrooted_path(dir_path);
 
-        match fs::exists(safe_dir_path.clone()) {
-            Ok(dir_exists) => {
-                if !dir_exists {
-                    return true;
+            match fs::exists(safe_dir_path.clone()) {
+                Ok(dir_exists) => {
+                    if !dir_exists {
+                        return true;
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to check if directory {safe_dir_path} exists: {e:?}");
+                    return false;
                 }
             }
-            Err(e) => {
-                error!("Failed to check if directory {safe_dir_path} exists: {e:?}");
-                return false;
+
+            match fs::remove_dir_all(safe_dir_path.clone()) {
+                Ok(_) => return true,
+                Err(e) => error!("Failed to delete directory {safe_dir_path}: {e}"),
             }
-        }
 
-        match fs::remove_dir_all(safe_dir_path.clone()) {
-            Ok(_) => return true,
-            Err(e) => error!("Failed to delete directory {safe_dir_path}: {e}"),
+            false
         }
-
-        false
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = dir_path;
+            true
+        }
     }
 
     /// Set executable permissions on an existing file in the chroot directory.
@@ -633,48 +722,58 @@ impl Chroot {
     ///
     /// let file_name = "runme.exe";
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     /// chroot.create_file(file_name, b"AAAA");
     ///
     /// assert_eq!(chroot.make_executable(file_name), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[allow(dead_code)]
     pub fn make_executable(&self, file_path: impl Into<String>) -> bool {
-        // Make the file globally executable
-        const UNIX_EXEC_FLAG: u32 = 1;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // Make the file globally executable
+            const UNIX_EXEC_FLAG: u32 = 1;
 
-        let safe_file_path: String = self.chrooted_path(file_path);
+            let safe_file_path: String = self.chrooted_path(file_path);
 
-        match fs::metadata(safe_file_path.clone()) {
-            Err(e) => {
-                error!("Failed to get permissions for file {safe_file_path}: {e}");
-            }
-            Ok(_metadata) => {
-                #[cfg(unix)]
-                {
-                    let mut permissions = _metadata.permissions();
-                    let mode = permissions.mode() | UNIX_EXEC_FLAG;
-                    permissions.set_mode(mode);
+            match fs::metadata(safe_file_path.clone()) {
+                Err(e) => {
+                    error!("Failed to get permissions for file {safe_file_path}: {e}");
+                }
+                Ok(_metadata) => {
+                    #[cfg(unix)]
+                    {
+                        let mut permissions = _metadata.permissions();
+                        let mode = permissions.mode() | UNIX_EXEC_FLAG;
+                        permissions.set_mode(mode);
 
-                    match fs::set_permissions(&safe_file_path, permissions) {
-                        Err(e) => {
-                            error!("Failed to set permissions for file {safe_file_path}: {e}");
-                        }
-                        Ok(_) => {
-                            return true;
+                        match fs::set_permissions(&safe_file_path, permissions) {
+                            Err(e) => {
+                                error!("Failed to set permissions for file {safe_file_path}: {e}");
+                            }
+                            Ok(_) => {
+                                return true;
+                            }
                         }
                     }
-                }
-                #[cfg(windows)]
-                {
-                    return true;
+                    #[cfg(windows)]
+                    {
+                        return true;
+                    }
                 }
             }
-        }
 
-        false
+            false
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = file_path;
+            true
+        }
     }
 
     /// Creates a symbolic link in the chroot directory, named `symlink_path`, which points to `target_path`.
@@ -699,11 +798,14 @@ impl Chroot {
     /// let expected_symlink_path = std::path::Path::new(&chroot_dir).join(symlink_name);
     /// let expected_target_path = std::path::Path::new(&chroot_dir).join(target_path);
     ///
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_symlink(symlink_name, target_path), true);
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::canonicalize(expected_symlink_path)?.to_str(), expected_target_path.to_str());
+    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # std::fs::remove_dir_all(&chroot_dir);
     /// # Ok(())
     /// # } _doctest_main_src_extractors_common_rs_571_0(); }
@@ -713,107 +815,108 @@ impl Chroot {
         symlink_path: impl Into<String>,
         target_path: impl Into<String>,
     ) -> bool {
-        let target = target_path.into();
-        let symlink = symlink_path.into();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let target = target_path.into();
+            let symlink = symlink_path.into();
 
-        // Chroot the symlink file path and create a Path object
-        let safe_symlink = self.chrooted_path(&symlink);
-        let safe_symlink_path = path::Path::new(&safe_symlink);
+            // Chroot the symlink file path and create a Path object
+            let safe_symlink = self.chrooted_path(&symlink);
+            let safe_symlink_path = path::Path::new(&safe_symlink);
 
-        // Normalize the symlink target path to a chrooted absolute path
-        let safe_target = if target.starts_with(path::MAIN_SEPARATOR) {
-            // If the target path is absolute, just chroot it inside the chroot directory
-            self.chrooted_path(&target)
-        } else {
-            // Get the symlink file's parent directory path
-            let relative_dir: String = match safe_symlink_path.parent() {
-                None => {
-                    // There is no parent, or parent is the root directory; assume the root directory
-                    path::MAIN_SEPARATOR.to_string()
-                }
-                Some(parent_dir) => {
-                    // Got the parent directory
-                    parent_dir.display().to_string()
-                }
+            // Normalize the symlink target path to a chrooted absolute path
+            let safe_target = if target.starts_with(path::MAIN_SEPARATOR) {
+                // If the target path is absolute, just chroot it inside the chroot directory
+                self.chrooted_path(&target)
+            } else {
+                // Get the symlink file's parent directory path
+                let relative_dir: String = match safe_symlink_path.parent() {
+                    None => {
+                        // There is no parent, or parent is the root directory; assume the root directory
+                        path::MAIN_SEPARATOR.to_string()
+                    }
+                    Some(parent_dir) => {
+                        // Got the parent directory
+                        parent_dir.display().to_string()
+                    }
+                };
+
+                // Join the target path with its relative directory, ensuring it does not traverse outside
+                // the specified chroot directory
+                self.safe_path_join(&relative_dir, &target)
             };
 
-            // Join the target path with its relative directory, ensuring it does not traverse outside
-            // the specified chroot directory
-            self.safe_path_join(&relative_dir, &target)
-        };
+            // Remove the chroot directory from the target and symlink paths.
+            // This results in each being an absolute path that is relative to the chroot directory,
+            // e.g., '/my_chroot_dir/bin/busybox' -> '/bin/busybox'.
+            //
+            // Note: need at least one leading '/', so if the chroot directory is just '/', just use the string as-is.
+            let mut safe_target_rel_path = if self.chroot_directory == path::MAIN_SEPARATOR.to_string()
+            {
+                safe_target.clone()
+            } else {
+                safe_target.replacen(&self.chroot_directory, "", 1)
+            };
 
-        // Remove the chroot directory from the target and symlink paths.
-        // This results in each being an absolute path that is relative to the chroot directory,
-        // e.g., '/my_chroot_dir/bin/busybox' -> '/bin/busybox'.
-        //
-        // Note: need at least one leading '/', so if the chroot directory is just '/', just use the string as-is.
-        let mut safe_target_rel_path = if self.chroot_directory == path::MAIN_SEPARATOR.to_string()
-        {
-            safe_target.clone()
-        } else {
-            safe_target.replacen(&self.chroot_directory, "", 1)
-        };
+            let safe_symlink_rel_path = if self.chroot_directory == path::MAIN_SEPARATOR.to_string() {
+                safe_symlink.clone()
+            } else {
+                safe_symlink.replacen(&self.chroot_directory, "", 1)
+            };
 
-        let safe_symlink_rel_path = if self.chroot_directory == path::MAIN_SEPARATOR.to_string() {
-            safe_symlink.clone()
-        } else {
-            safe_symlink.replacen(&self.chroot_directory, "", 1)
-        };
+            // Count the number of path separators (minus the leading one) and an '../' to the target
+            // path for each; e.g., '/bin/busybox' -> '..//bin/busybox'.
+            for _i in 0..safe_symlink_rel_path.matches(path::MAIN_SEPARATOR).count() - 1 {
+                safe_target_rel_path = format!("..{}{}", path::MAIN_SEPARATOR, safe_target_rel_path);
+            }
 
-        // Count the number of path separators (minus the leading one) and an '../' to the target
-        // path for each; e.g., '/bin/busybox' -> '..//bin/busybox'.
-        for _i in 0..safe_symlink_rel_path.matches(path::MAIN_SEPARATOR).count() - 1 {
-            safe_target_rel_path = format!("..{}{}", path::MAIN_SEPARATOR, safe_target_rel_path);
-        }
+            // Add a '.' at the beginning of any paths that start with '/', e.g., '/tmp' -> './tmp'.
+            if safe_target_rel_path.starts_with(path::MAIN_SEPARATOR) {
+                safe_target_rel_path = format!(".{safe_target_rel_path}");
+            }
 
-        // Add a '.' at the beginning of any paths that start with '/', e.g., '/tmp' -> './tmp'.
-        if safe_target_rel_path.starts_with(path::MAIN_SEPARATOR) {
-            safe_target_rel_path = format!(".{safe_target_rel_path}");
-        }
+            // Replace any instances of '//' with '/'
+            safe_target_rel_path = self.strip_double_slash(&safe_target_rel_path);
 
-        // Replace any instances of '//' with '/'
-        safe_target_rel_path = self.strip_double_slash(&safe_target_rel_path);
+            // The target path is now a safely chrooted path that is relative to the symlink file path.
+            let safe_target_path = path::Path::new(&safe_target_rel_path);
 
-        // The target path is now a safely chrooted path that is relative to the symlink file path.
-        // Ex:
-        //
-        //     Original symlink: "/my_chroot_dir/usr/sbin/ls" is a symlink to "/bin/busybox"
-        //     Safe relative symlink: "/my_chroot_dir/usr/sbin/ls" is a symlink to "./../../bin/busybox"
-        let safe_target_path = path::Path::new(&safe_target_rel_path);
-
-        #[cfg(unix)]
-        {
-            match unix::fs::symlink(safe_target_path, safe_symlink_path) {
-                Ok(_) => true,
-                Err(e) => {
-                    error!("Failed to create symlink from {symlink} -> {target}: {e}");
-                    false
+            #[cfg(unix)]
+            {
+                match unix::fs::symlink(safe_target_path, safe_symlink_path) {
+                    Ok(_) => true,
+                    Err(e) => {
+                        error!("Failed to create symlink from {symlink} -> {target}: {e}");
+                        false
+                    }
+                }
+            }
+            #[cfg(windows)]
+            {
+                match windows::fs::symlink_dir(safe_target_path, safe_symlink_path) {
+                    Ok(_) => {
+                        return true;
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to create symlink from {} -> {}: {}",
+                            symlink, target, e
+                        );
+                        return false;
+                    }
                 }
             }
         }
-        #[cfg(windows)]
+        #[cfg(target_arch = "wasm32")]
         {
-            // let sym = match safe_target_path.is_dir() {
-            //     true => windows::fs::symlink_dir(safe_target_path, safe_symlink_path),
-            //     false => windows::fs::symlink_file(safe_target_path, safe_symlink_path),
-            // };
-
-            match windows::fs::symlink_dir(safe_target_path, safe_symlink_path) {
-                Ok(_) => {
-                    return true;
-                }
-                Err(e) => {
-                    error!(
-                        "Failed to create symlink from {} -> {}: {}",
-                        symlink, target, e
-                    );
-                    return false;
-                }
-            }
+            let _ = symlink_path;
+            let _ = target_path;
+            true
         }
     }
 
     /// Returns true if the file path is a symlink.
+    #[cfg(not(target_arch = "wasm32"))]
     fn is_symlink(&self, file_path: &str) -> bool {
         if let Ok(metadata) = fs::symlink_metadata(file_path) {
             return metadata.file_type().is_symlink();
@@ -825,17 +928,29 @@ impl Chroot {
     /// Replace `//` with `/`. This is for asthetics only.
     fn strip_double_slash(&self, path: &str) -> String {
         let mut stripped_path = path.to_owned();
-        let single_slash = path::MAIN_SEPARATOR.to_string();
-        let double_slash = format!("{single_slash}{single_slash}");
+        let sep = if cfg!(not(target_arch = "wasm32")) {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                path::MAIN_SEPARATOR.to_string()
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                "/".to_string()
+            }
+        } else {
+            "/".to_string()
+        };
+        let double_sep = format!("{sep}{sep}");
 
-        while stripped_path.contains(&double_slash) {
-            stripped_path = stripped_path.replace(&double_slash, &single_slash);
+        while stripped_path.contains(&double_sep) {
+            stripped_path = stripped_path.replace(&double_sep, &sep);
         }
 
         stripped_path
     }
 
     /// Interprets a given path containing '..' directories.
+    #[cfg(not(target_arch = "wasm32"))]
     fn sanitize_path(&self, file_path: &str, preserve_root_path_sep: bool) -> String {
         const DIR_TRAVERSAL: &str = "..";
 
@@ -888,30 +1003,37 @@ impl Chroot {
 }
 
 /// Recursively walks a given directory and returns a list of regular non-zero size files in the given directory path.
-#[allow(dead_code)]
 pub fn get_extracted_files(directory: &str) -> Vec<String> {
-    let mut regular_files: Vec<String> = vec![];
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut regular_files: Vec<String> = vec![];
 
-    for entry in WalkDir::new(directory).into_iter() {
-        match entry {
-            Err(_e) => continue,
-            Ok(entry) => {
-                let entry_path = entry.path();
-                // Query file metadata *without* following symlinks
-                match fs::symlink_metadata(entry_path) {
-                    Err(_e) => continue,
-                    Ok(md) => {
-                        // Only interested in non-empty, regular files
-                        if md.is_file() && md.len() > 0 {
-                            regular_files.push(entry_path.display().to_string());
+        for entry in WalkDir::new(directory).into_iter() {
+            match entry {
+                Err(_e) => continue,
+                Ok(entry) => {
+                    let entry_path = entry.path();
+                    // Query file metadata *without* following symlinks
+                    match fs::symlink_metadata(entry_path) {
+                        Err(_e) => continue,
+                        Ok(md) => {
+                            // Only interested in non-empty, regular files
+                            if md.is_file() && md.len() > 0 {
+                                regular_files.push(entry_path.display().to_string());
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    regular_files
+        regular_files
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = directory;
+        vec![]
+    }
 }
 
 /// Executes an extractor for the provided SignatureResult.
@@ -964,34 +1086,42 @@ pub fn execute(
                     }
 
                     ExtractorType::External(cmd) => {
-                        // Spawn the external extractor command
-                        match spawn(
-                            file_data,
-                            file_path,
-                            &output_directory,
-                            signature,
-                            extractor_definition.clone(),
-                        ) {
-                            Err(e) => {
-                                error!(
-                                    "Failed to spawn external extractor for '{}' signature: {}",
-                                    signature.name, e
-                                );
-                            }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            // Spawn the external extractor command
+                            match spawn(
+                                file_data,
+                                file_path,
+                                &output_directory,
+                                signature,
+                                extractor_definition.clone(),
+                            ) {
+                                Err(e) => {
+                                    error!(
+                                        "Failed to spawn external extractor for '{}' signature: {}",
+                                        signature.name, e
+                                    );
+                                }
 
-                            Ok(proc_info) => {
-                                // Wait for the external process to exit
-                                match proc_wait(proc_info) {
-                                    Err(_) => {
-                                        warn!("External extractor failed!");
-                                    }
-                                    Ok(ext_result) => {
-                                        result = ext_result;
-                                        // Set the extractor name to the name of the extraction utility
-                                        result.extractor = cmd.to_string();
+                                Ok(proc_info) => {
+                                    // Wait for the external process to exit
+                                    match proc_wait(proc_info) {
+                                        Err(_) => {
+                                            warn!("External extractor failed!");
+                                        }
+                                        Ok(ext_result) => {
+                                            result = ext_result;
+                                            // Set the extractor name to the name of the extraction utility
+                                            result.extractor = cmd.to_string();
+                                        }
                                     }
                                 }
                             }
+                        }
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            let _ = cmd;
+                            error!("External extractors are not supported on WASM");
                         }
                     }
                 }
@@ -1009,6 +1139,7 @@ pub fn execute(
         }
 
         // Clean up extractor's output directory if extraction failed
+        #[cfg(not(target_arch = "wasm32"))]
         if !result.success {
             if let Err(e) = fs::remove_dir_all(&output_directory) {
                 warn!(
@@ -1022,6 +1153,7 @@ pub fn execute(
 }
 
 /// Spawn an external extractor process.
+#[cfg(not(target_arch = "wasm32"))]
 fn spawn(
     file_data: &[u8],
     file_path: &str,
@@ -1116,7 +1248,7 @@ fn spawn(
 }
 
 /// Waits for an extraction process to complete.
-/// Returns ExtractionError if the extractor was prematurely terminated, else returns an ExtractionResult.
+#[cfg(not(target_arch = "wasm32"))]
 fn proc_wait(mut worker_info: ProcInfo) -> Result<ExtractionResult, ExtractionError> {
     // The standard exit success value is 0
     const EXIT_SUCCESS: i32 = 0;
@@ -1170,61 +1302,75 @@ fn proc_wait(mut worker_info: ProcInfo) -> Result<ExtractionResult, ExtractionEr
 
 // Create an output directory in which to place extraction results
 fn create_output_directory(file_path: &str, offset: usize) -> Result<String, std::io::Error> {
-    let chroot = Chroot::new(None);
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let chroot = Chroot::new(None);
 
-    // Output directory will be: <file_path.extracted/<hex offset>
-    let output_directory = format!(
-        "{}.extracted{}{:X}",
-        file_path,
-        path::MAIN_SEPARATOR,
-        offset
-    );
+        // Output directory will be: <file_path.extracted/<hex offset>
+        let output_directory = format!(
+            "{}.extracted{}{:X}",
+            file_path,
+            path::MAIN_SEPARATOR,
+            offset
+        );
 
-    // First, remove the output directory if it exists from a previous run
-    if !chroot.remove_directory(&output_directory) {
-        return Err(std::io::Error::other("Directory deletion failed"));
+        // First, remove the output directory if it exists from a previous run
+        if !chroot.remove_directory(&output_directory) {
+            return Err(std::io::Error::other("Directory deletion failed"));
+        }
+
+        // Create the output directory, equivalent of mkdir -p
+        if !chroot.create_directory(&output_directory) {
+            return Err(std::io::Error::other("Directory creation failed"));
+        }
+
+        Ok(output_directory)
     }
-
-    // Create the output directory, equivalent of mkdir -p
-    if !chroot.create_directory(&output_directory) {
-        return Err(std::io::Error::other("Directory creation failed"));
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok(format!("{}.extracted/{:X}", file_path, offset))
     }
-
-    Ok(output_directory)
 }
 
 /// Returns true if the size of the provided extractor output directory is greater than zero.
-/// Note that any intermediate/carved files must be deleted *before* calling this function.
 fn was_something_extracted(output_directory: &str) -> bool {
-    let output_directory_path = path::Path::new(output_directory);
-    debug!("Checking output directory {output_directory} for results");
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let output_directory_path = path::Path::new(output_directory);
+        debug!("Checking output directory {output_directory} for results");
 
-    // Walk the output directory looking for something, anything, that isn't an empty file
-    for entry in WalkDir::new(output_directory).into_iter() {
-        match entry {
-            Err(e) => {
-                warn!("Failed to retrieve output directory entry: {e}");
-                continue;
-            }
-            Ok(entry) => {
-                // Don't include the base output directory path itself
-                if entry.path() == output_directory_path {
+        // Walk the output directory looking for something, anything, that isn't an empty file
+        for entry in WalkDir::new(output_directory).into_iter() {
+            match entry {
+                Err(e) => {
+                    warn!("Failed to retrieve output directory entry: {e}");
                     continue;
                 }
+                Ok(entry) => {
+                    // Don't include the base output directory path itself
+                    if entry.path() == output_directory_path {
+                        continue;
+                    }
 
-                debug!("Found output file {}", entry.path().display());
+                    debug!("Found output file {}", entry.path().display());
 
-                match fs::symlink_metadata(entry.path()) {
-                    Err(_e) => continue,
-                    Ok(md) => {
-                        if md.len() > 0 {
-                            return true;
+                    match fs::symlink_metadata(entry.path()) {
+                        Err(_e) => continue,
+                        Ok(md) => {
+                            if md.len() > 0 {
+                                return true;
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    false
+        false
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = output_directory;
+        true // Assume something was extracted or just ignore the check
+    }
 }

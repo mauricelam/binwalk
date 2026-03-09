@@ -1,6 +1,7 @@
 //! Common Functions
 use chrono::prelude::DateTime;
 use log::{debug, error};
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs::File;
 use std::io::Read;
 
@@ -17,11 +18,13 @@ use std::io::Read;
 /// # Ok(())
 /// # } _doctest_main_src_common_rs_11_0(); }
 /// ```
+#[cfg(not(target_arch = "wasm32"))]
 pub fn read_input(file: impl Into<String>, stdin: bool) -> Result<Vec<u8>, std::io::Error> {
     if stdin { read_stdin() } else { read_file(file) }
 }
 
 /// Read data from standard input and return its contents.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn read_stdin() -> Result<Vec<u8>, std::io::Error> {
     let mut stdin_data = Vec::new();
 
@@ -50,6 +53,7 @@ pub fn read_stdin() -> Result<Vec<u8>, std::io::Error> {
 /// # Ok(())
 /// # } _doctest_main_src_common_rs_48_0(); }
 /// ```
+#[cfg(not(target_arch = "wasm32"))]
 pub fn read_file(file: impl Into<String>) -> Result<Vec<u8>, std::io::Error> {
     let mut file_data = Vec::new();
     let file_path = file.into();

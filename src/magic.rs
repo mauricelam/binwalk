@@ -35,7 +35,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::sevenzip::sevenzip_magic(),
             parser: signatures::sevenzip::sevenzip_parser,
             description: signatures::sevenzip::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::sevenzip::sevenzip_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // xz
         signatures::common::Signature {
@@ -57,7 +60,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::tarball::tarball_magic(),
             parser: signatures::tarball::tarball_parser,
             description: signatures::tarball::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::tarball::tarball_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // squashfs
         signatures::common::Signature {
@@ -68,7 +74,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::squashfs::squashfs_magic(),
             parser: signatures::squashfs::squashfs_parser,
             description: signatures::squashfs::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::squashfs::squashfs_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // dlob
         signatures::common::Signature {
@@ -90,7 +99,6 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::lzma::lzma_magic(),
             parser: signatures::lzma::lzma_parser,
             description: signatures::lzma::DESCRIPTION.to_string(),
-            //extractor: Some(extractors::sevenzip::sevenzip_extractor()),
             extractor: Some(extractors::lzma::lzma_extractor()),
         },
         // bmp
@@ -168,7 +176,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::cpio::cpio_magic(),
             parser: signatures::cpio::cpio_parser,
             description: signatures::cpio::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::sevenzip::sevenzip_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // iso9660 primary volume
         signatures::common::Signature {
@@ -179,7 +190,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::iso9660::iso_magic(),
             parser: signatures::iso9660::iso_parser,
             description: signatures::iso9660::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::iso9660::iso9660_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // linux kernel
         signatures::common::Signature {
@@ -190,7 +204,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::linux::linux_kernel_version_magic(),
             parser: signatures::linux::linux_kernel_version_parser,
             description: signatures::linux::LINUX_KERNEL_VERSION_DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::linux::linux_kernel_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // linux boot image
         signatures::common::Signature {
@@ -223,7 +240,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::zstd::zstd_magic(),
             parser: signatures::zstd::zstd_parser,
             description: signatures::zstd::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::zstd::zstd_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // zip
         signatures::common::Signature {
@@ -234,7 +254,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::zip::zip_magic(),
             parser: signatures::zip::zip_parser,
             description: signatures::zip::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::sevenzip::sevenzip_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // Intel PCH ROM
         signatures::common::Signature {
@@ -245,7 +268,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::pchrom::pch_rom_magic(),
             parser: signatures::pchrom::pch_rom_parser,
             description: signatures::pchrom::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::uefi::uefi_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // UEFI PI volume
         signatures::common::Signature {
@@ -256,7 +282,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::uefi::uefi_volume_magic(),
             parser: signatures::uefi::uefi_volume_parser,
             description: signatures::uefi::VOLUME_DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::uefi::uefi_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // UEFI capsule image
         signatures::common::Signature {
@@ -267,7 +296,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::uefi::uefi_capsule_magic(),
             parser: signatures::uefi::uefi_capsule_parser,
             description: signatures::uefi::CAPSULE_DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::uefi::uefi_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // PDF document
         signatures::common::Signature {
@@ -300,7 +332,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::cramfs::cramfs_magic(),
             parser: signatures::cramfs::cramfs_parser,
             description: signatures::cramfs::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::sevenzip::sevenzip_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // QNX IFS
         // TODO: The signature and extractor are untested. Need a sample IFS image.
@@ -312,7 +347,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::qnx::qnx_ifs_magic(),
             parser: signatures::qnx::qnx_ifs_parser,
             description: signatures::qnx::IFS_DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::dumpifs::dumpifs_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // RomFS
         signatures::common::Signature {
@@ -323,7 +361,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::romfs::romfs_magic(),
             parser: signatures::romfs::romfs_parser,
             description: signatures::romfs::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::romfs::romfs_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // EXT
         signatures::common::Signature {
@@ -334,7 +375,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::ext::ext_magic(),
             parser: signatures::ext::ext_parser,
             description: signatures::ext::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::tsk::tsk_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // CAB archive
         signatures::common::Signature {
@@ -345,7 +389,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::cab::cab_magic(),
             parser: signatures::cab::cab_parser,
             description: signatures::cab::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::cab::cab_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // JFFS2
         signatures::common::Signature {
@@ -356,7 +403,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::jffs2::jffs2_magic(),
             parser: signatures::jffs2::jffs2_parser,
             description: signatures::jffs2::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::jffs2::jffs2_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // YAFFS
         signatures::common::Signature {
@@ -367,7 +417,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::yaffs::yaffs_magic(),
             parser: signatures::yaffs::yaffs_parser,
             description: signatures::yaffs::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::yaffs2::yaffs2_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // lz4
         signatures::common::Signature {
@@ -378,7 +431,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::lz4::lz4_magic(),
             parser: signatures::lz4::lz4_parser,
             description: signatures::lz4::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::lz4::lz4_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // lzop
         signatures::common::Signature {
@@ -389,7 +445,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::lzop::lzop_magic(),
             parser: signatures::lzop::lzop_parser,
             description: signatures::lzop::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::lzop::lzop_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // lzop
         signatures::common::Signature {
@@ -490,7 +549,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::srec::srec_magic(),
             parser: signatures::srec::srec_parser,
             description: signatures::srec::SREC_DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::srec::srec_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // Motorola S-record (generic)
         signatures::common::Signature {
@@ -501,7 +563,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::srec::srec_short_magic(),
             parser: signatures::srec::srec_parser,
             description: signatures::srec::SREC_SHORT_DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::srec::srec_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // Android sparse
         signatures::common::Signature {
@@ -534,7 +599,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::ubi::ubi_magic(),
             parser: signatures::ubi::ubi_parser,
             description: signatures::ubi::UBI_IMAGE_DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::ubi::ubi_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // ubifs
         signatures::common::Signature {
@@ -545,7 +613,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::ubi::ubifs_magic(),
             parser: signatures::ubi::ubifs_parser,
             description: signatures::ubi::UBI_FS_DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::ubi::ubifs_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // cfe bootloader
         signatures::common::Signature {
@@ -578,7 +649,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::compressd::compressd_magic(),
             parser: signatures::compressd::compressd_parser,
             description: signatures::compressd::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::sevenzip::sevenzip_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // rar archive
         signatures::common::Signature {
@@ -589,7 +663,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::rar::rar_magic(),
             parser: signatures::rar::rar_parser,
             description: signatures::rar::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::rar::rar_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // PNG image
         signatures::common::Signature {
@@ -677,7 +754,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::dmg::dmg_magic(),
             parser: signatures::dmg::dmg_parser,
             description: signatures::dmg::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::dmg::dmg_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // riff
         signatures::common::Signature {
@@ -710,7 +790,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::lzfse::lzfse_magic(),
             parser: signatures::lzfse::lzfse_parser,
             description: signatures::lzfse::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::lzfse::lzfse_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // MBR
         signatures::common::Signature {
@@ -842,7 +925,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::fat::fat_magic(),
             parser: signatures::fat::fat_parser,
             description: signatures::fat::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::tsk::tsk_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // EFI GPT
         signatures::common::Signature {
@@ -853,7 +939,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::efigpt::efigpt_magic(),
             parser: signatures::efigpt::efigpt_parser,
             description: signatures::efigpt::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::sevenzip::sevenzip_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // RTK firmware header
         signatures::common::Signature {
@@ -974,7 +1063,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::ntfs::ntfs_magic(),
             parser: signatures::ntfs::ntfs_parser,
             description: signatures::ntfs::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::tsk::tsk_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // APFS
         signatures::common::Signature {
@@ -985,7 +1077,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::apfs::apfs_magic(),
             parser: signatures::apfs::apfs_parser,
             description: signatures::apfs::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::sevenzip::sevenzip_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // BTRFS
         signatures::common::Signature {
@@ -1216,7 +1311,10 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::arj::arj_magic(),
             parser: signatures::arj::arj_parser,
             description: signatures::arj::DESCRIPTION.to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
             extractor: Some(extractors::sevenzip::sevenzip_extractor()),
+            #[cfg(target_arch = "wasm32")]
+            extractor: None,
         },
         // MD5 hashes
         signatures::common::Signature {
