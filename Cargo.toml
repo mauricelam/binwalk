@@ -30,6 +30,7 @@ serde = { version = "1.0", features = ["derive"] }
 clap = { version = "4.5.16", features = ["derive"] }
 xxhash-rust = { version = "0.8.12", features = ["xxh32"] }
 hex = "0.4.3"
+uuid = { version = "1.17.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 termsize = "0.1"
@@ -37,11 +38,10 @@ walkdir = "2.5.0"
 threadpool = "1.8.1"
 delink = { git = "https://github.com/devttys0/delink" }
 plotly = { version = "0.13.1", features = ["kaleido", "kaleido_download"] }
-uuid = { version = "1.17.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 plotly = { version = "0.13.1" }
-uuid = { version = "1.17.0", features = ["v4", "fast-rng", "macro-diagnostics", "js"] }
+uuid = { version = "1.17.0", features = ["js"] }
 
 [profile.release]
 lto = true

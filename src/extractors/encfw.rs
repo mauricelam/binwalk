@@ -40,7 +40,7 @@ pub fn encfw_decrypt(
     #[cfg(not(target_arch = "wasm32"))]
     const OUTPUT_FILE_NAME: &str = "decrypted.bin";
 
-    #[allow(unused_mut)]
+    #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
     let mut result = ExtractionResult {
         ..Default::default()
     };

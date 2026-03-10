@@ -2,36 +2,39 @@
 compile_error!("The binwalk CLI is not supported on WASM targets. Use the binwalk library instead.");
 
 #[cfg(not(target_arch = "wasm32"))]
-use binwalk::AnalysisResults;
-#[cfg(not(target_arch = "wasm32"))]
-use log::{debug, error, info};
-#[cfg(not(target_arch = "wasm32"))]
-use std::collections::VecDeque;
-#[cfg(not(target_arch = "wasm32"))]
-use std::panic;
-#[cfg(not(target_arch = "wasm32"))]
-use std::process;
-#[cfg(not(target_arch = "wasm32"))]
-use std::process::ExitCode;
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::mpsc;
-#[cfg(not(target_arch = "wasm32"))]
-use std::thread;
-#[cfg(not(target_arch = "wasm32"))]
-use std::time;
-#[cfg(not(target_arch = "wasm32"))]
-use threadpool::ThreadPool;
-
 mod binwalk;
+#[cfg(not(target_arch = "wasm32"))]
 mod cliparser;
+#[cfg(not(target_arch = "wasm32"))]
 mod common;
+#[cfg(not(target_arch = "wasm32"))]
 mod display;
+#[cfg(not(target_arch = "wasm32"))]
 mod entropy;
+#[cfg(not(target_arch = "wasm32"))]
 mod extractors;
+#[cfg(not(target_arch = "wasm32"))]
 mod json;
+#[cfg(not(target_arch = "wasm32"))]
 mod magic;
+#[cfg(not(target_arch = "wasm32"))]
 mod signatures;
+#[cfg(not(target_arch = "wasm32"))]
 mod structures;
+
+#[cfg(not(target_arch = "wasm32"))]
+use {
+    binwalk::AnalysisResults,
+    log::{debug, error, info},
+    std::collections::VecDeque,
+    std::panic,
+    std::process,
+    std::process::ExitCode,
+    std::sync::mpsc,
+    std::thread,
+    std::time,
+    threadpool::ThreadPool,
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> ExitCode {
@@ -265,9 +268,6 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-#[cfg(target_arch = "wasm32")]
-fn main() {}
-
 /// Returns true if the specified results should be displayed to screen
 #[cfg(not(target_arch = "wasm32"))]
 fn should_display(results: &AnalysisResults, file_count: usize, verbose: bool) -> bool {
@@ -416,3 +416,6 @@ fn carve_file_data_to_disk(
 
     true
 }
+
+#[cfg(target_arch = "wasm32")]
+fn main() {}

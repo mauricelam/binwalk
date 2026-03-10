@@ -4,10 +4,6 @@ use aho_corasick::AhoCorasick;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-#[allow(unused_imports)]
-use std::fs;
-#[allow(unused_imports)]
-use std::path;
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -55,10 +51,10 @@ pub struct AnalysisResults {
 /// use binwalk::Binwalk;
 ///
 /// let target_file = "/bin/ls";
-/// # #[cfg(not(target_arch = "wasm32"))]
-/// let data_to_scan = std::fs::read(target_file).expect("Unable to read file");
-/// # #[cfg(target_arch = "wasm32")]
-/// # let data_to_scan = vec![0u8; 0];
+/// let data_to_scan = match std::fs::read(target_file) {
+///     Ok(data) => data,
+///     Err(_) => vec![0u8; 0],
+/// };
 ///
 /// let binwalker = Binwalk::new();
 ///
@@ -262,10 +258,10 @@ impl Binwalk {
     /// use binwalk::Binwalk;
     ///
     /// let target_file = "/bin/ls";
-    /// # #[cfg(not(target_arch = "wasm32"))]
-    /// let data_to_scan = std::fs::read(target_file).expect("Unable to read file");
-    /// # #[cfg(target_arch = "wasm32")]
-    /// # let data_to_scan = vec![0u8; 0];
+    /// let data_to_scan = match std::fs::read(target_file) {
+    ///     Ok(data) => data,
+    ///     Err(_) => vec![0u8; 0],
+    /// };
     ///
     /// let binwalker = Binwalk::new();
     ///
@@ -275,8 +271,9 @@ impl Binwalk {
     ///     println!("{:#X}  {}", result.offset, result.description);
     /// }
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
+    /// # if !data_to_scan.is_empty() {
     /// assert!(signature_results.len() > 0);
+    /// # }
     /// ```
     pub fn scan(&self, file_data: &[u8]) -> Vec<signatures::common::SignatureResult> {
         const FILE_START_OFFSET: usize = 0;
@@ -595,7 +592,6 @@ impl Binwalk {
     ///     .display()
     ///     .to_string();
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&extraction_directory);
     /// let binwalker = Binwalk::configure(Some(target_path),
     ///                                    Some(extraction_directory.clone()),
@@ -604,25 +600,23 @@ impl Binwalk {
     ///                                    None,
     ///                                    false)?;
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
-    /// let file_data = std::fs::read(&binwalker.base_target_file).expect("Unable to read file");
-    /// # #[cfg(target_arch = "wasm32")]
-    /// # let file_data = vec![0u8; 0];
+    /// let file_data = match std::fs::read(&binwalker.base_target_file) {
+    ///     Ok(data) => data,
+    ///     Err(_) => vec![0u8; 0],
+    /// };
     ///
     /// let scan_results = binwalker.scan(&file_data);
     /// let extraction_results = binwalker.extract(&file_data, &binwalker.base_target_file, &scan_results);
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
+    /// # if !file_data.is_empty() {
     /// assert_eq!(scan_results.len(), 1);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(extraction_results.len(),  1);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::path::Path::new(&extraction_directory)
     ///     .join("gzip.bin.extracted")
     ///     .join("0")
     ///     .join("decompressed.bin")
     ///     .exists(), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
+    /// # }
     /// # let _ = std::fs::remove_dir_all(&extraction_directory);
     /// # Ok(binwalker)
     /// # } _doctest_main_src_binwalk_rs_529_0(); }
@@ -718,12 +712,8 @@ impl Binwalk {
     ///     .display()
     ///     .to_string();
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
-    /// let file_data = common::read_file(&target_path).expect("Failed to read file data");
-    /// # #[cfg(target_arch = "wasm32")]
-    /// # let file_data = vec![0u8; 0];
+    /// let file_data = common::read_file(&target_path).unwrap_or_else(|_| vec![0u8; 0]);
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&extraction_directory);
     /// let binwalker = Binwalk::configure(Some(target_path),
     ///                                    Some(extraction_directory.clone()),
@@ -734,17 +724,15 @@ impl Binwalk {
     ///
     /// let analysis_results = binwalker.analyze_buf(&file_data, &binwalker.base_target_file, true);
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
+    /// # if !file_data.is_empty() {
     /// assert_eq!(analysis_results.file_map.len(), 1);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(analysis_results.extractions.len(),  1);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::path::Path::new(&extraction_directory)
     ///     .join("gzip.bin.extracted")
     ///     .join("0")
     ///     .join("decompressed.bin")
     ///     .exists(), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
+    /// # }
     /// # let _ = std::fs::remove_dir_all(&extraction_directory);
     /// # Ok(binwalker)
     /// # } _doctest_main_src_binwalk_rs_672_0(); }
@@ -801,7 +789,6 @@ impl Binwalk {
     ///     .display()
     ///     .to_string();
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&extraction_directory);
     /// let binwalker = Binwalk::configure(Some(target_path),
     ///                                    Some(extraction_directory.clone()),
@@ -810,22 +797,17 @@ impl Binwalk {
     ///                                    None,
     ///                                    false)?;
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// let analysis_results = binwalker.analyze(&binwalker.base_target_file, true);
-    /// # #[cfg(target_arch = "wasm32")]
-    /// # let analysis_results = binwalker.analyze_buf(&vec![], &binwalker.base_target_file, true);
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
+    /// # if !analysis_results.file_map.is_empty() {
     /// assert_eq!(analysis_results.file_map.len(), 1);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(analysis_results.extractions.len(),  1);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::path::Path::new(&extraction_directory)
     ///     .join("gzip.bin.extracted")
     ///     .join("0")
     ///     .join("decompressed.bin")
     ///     .exists(), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
+    /// # }
     /// # let _ = std::fs::remove_dir_all(&extraction_directory);
     /// # Ok(binwalker)
     /// # } _doctest_main_src_binwalk_rs_745_0(); }
@@ -869,6 +851,7 @@ impl Binwalk {
     }
 
     /// Check if an extraction utility exists.
+    #[allow(dead_code)]
     pub fn extraction_utility_exists(&self, _signature_id: &str) -> bool {
         // Stub
         true

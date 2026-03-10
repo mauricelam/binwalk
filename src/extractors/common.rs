@@ -3,9 +3,11 @@ use log::{debug, error, warn};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
 use serde::{Deserialize, Serialize};
+#[cfg_attr(target_arch = "wasm32", allow(unused_imports))]
 use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::Write;
+#[cfg_attr(target_arch = "wasm32", allow(unused_imports))]
 use std::path;
 #[cfg(not(target_arch = "wasm32"))]
 use std::process;
@@ -33,6 +35,7 @@ pub type InternalExtractor = fn(&[u8], usize, Option<&str>) -> ExtractionResult;
 
 /// Enum to define either an Internal or External extractor type
 #[derive(Debug, Default, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[allow(unpredictable_function_pointer_comparisons)]
 pub enum ExtractorType {
     External(String),
     Internal(InternalExtractor),
@@ -82,6 +85,7 @@ pub struct ProcInfo {
 
 /// Provides chroot-like functionality for internal extractors
 #[derive(Debug, Default, Clone)]
+#[cfg_attr(target_arch = "wasm32", allow(unused))]
 pub struct Chroot {
     /// The chroot directory passed to Chroot::new
     pub chroot_directory: String,
@@ -99,18 +103,15 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_new_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(&chroot.chroot_directory, &chroot_dir);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::path::Path::new(&chroot_dir).exists(), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
@@ -180,11 +181,10 @@ impl Chroot {
     /// use std::path::MAIN_SEPARATOR;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_join_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
@@ -197,30 +197,21 @@ impl Chroot {
     /// let rel_path_file = format!("..{}..{}..{}{}", MAIN_SEPARATOR, MAIN_SEPARATOR, MAIN_SEPARATOR, file_name);
     ///
     /// let path1 = chroot.safe_path_join(&abs_path_dir, file_name);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// let expected_path1 = std::path::Path::new(&chroot_dir).join(dir_name).join(file_name);
     ///
     /// let path2 = chroot.safe_path_join(&abs_path_dir, &rel_path_file);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// let expected_path2 = std::path::Path::new(&chroot_dir).join(file_name);
     ///
     /// let path3 = chroot.safe_path_join(&rel_path_dir, &abs_path_file);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// let expected_path3 = std::path::Path::new(&chroot_dir).join(dir_name).join(file_name);
     ///
     /// let path4 = chroot.safe_path_join(&chroot_dir, &abs_path);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// let expected_path4 = std::path::Path::new(&chroot_dir).join(dir_name).join(file_name);
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(path1, expected_path1.display().to_string());
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(path2, expected_path2.display().to_string());
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(path3, expected_path3.display().to_string());
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(path4, expected_path4.display().to_string());
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
@@ -276,7 +267,7 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_chrooted_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
@@ -285,7 +276,6 @@ impl Chroot {
     /// let chroot = Chroot::new(Some(&chroot_dir));
     /// let path = chroot.chrooted_path(file_name);
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(path, std::path::Path::new(&chroot_dir).join(file_name).display().to_string());
     /// ```
     pub fn chrooted_path(&self, file_path: impl Into<String>) -> String {
@@ -304,24 +294,21 @@ impl Chroot {
     /// let file_name = "created_file.txt";
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_create_file_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_file(file_name, file_data), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name)).unwrap(), std::str::from_utf8(file_data).unwrap());
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
     pub fn create_file(&self, file_path: impl Into<String>, file_data: &[u8]) -> bool {
         let safe_file_path: String = self.chrooted_path(file_path);
-        if !std::path::Path::new(&safe_file_path).exists() {
+        if !path::Path::new(&safe_file_path).exists() {
             match fs::write(safe_file_path.clone(), file_data) {
                 Ok(_) => {
                     return true;
@@ -357,18 +344,15 @@ impl Chroot {
     /// let file_name = "carved_file.txt";
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_carve_file_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.carve_file(file_name, data, 0, CARVE_SIZE), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name)).unwrap(), std::str::from_utf8(&data[0..CARVE_SIZE]).unwrap());
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     pub fn carve_file(
@@ -416,7 +400,7 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_char_dev_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
@@ -424,14 +408,11 @@ impl Chroot {
     /// let dev_minor: usize = 2;
     /// let file_name = "char_device";
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_character_device(file_name, dev_major, dev_minor), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name)).unwrap(), "c 1 2");
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     pub fn create_character_device(
@@ -453,7 +434,7 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_block_dev_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
@@ -461,14 +442,11 @@ impl Chroot {
     /// let dev_minor: usize = 2;
     /// let file_name = "block_device";
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_block_device(file_name, dev_major, dev_minor), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name)).unwrap(), "b 1 2");
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     pub fn create_block_device(
@@ -490,20 +468,17 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_fifo_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
     /// let file_name = "fifo_file";
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_fifo(file_name), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name)).unwrap(), "fifo");
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     pub fn create_fifo(&self, file_path: impl Into<String>) -> bool {
@@ -520,20 +495,17 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_socket_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
     /// let file_name = "socket_file";
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_socket(file_name), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name)).unwrap(), "socket");
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     pub fn create_socket(&self, file_path: impl Into<String>) -> bool {
@@ -550,21 +522,18 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_append_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
     /// let file_data: &[u8] = b"foobar";
     /// let file_name = "append.txt";
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.append_to_file(file_name, file_data), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::fs::read_to_string(std::path::Path::new(&chroot_dir).join(file_name)).unwrap(), std::str::from_utf8(file_data).unwrap());
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
@@ -611,20 +580,17 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_mkdir_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
     /// let dir_name = "my_directory";
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_directory(dir_name), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// assert_eq!(std::path::Path::new(&chroot_dir).join(dir_name).exists(), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
@@ -657,20 +623,18 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_rmdir_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
     /// let dir_name = "my_directory";
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
     /// assert_eq!(chroot.create_directory(dir_name), true);
     /// assert_eq!(chroot.remove_directory(dir_name), true);
     /// assert_eq!(chroot.remove_directory("i_dont_exist"), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
@@ -711,19 +675,17 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_chmod_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
     /// let file_name = "runme.exe";
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     /// chroot.create_file(file_name, b"AAAA");
     ///
     /// assert_eq!(chroot.make_executable(file_name), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[allow(dead_code)]
@@ -780,29 +742,20 @@ impl Chroot {
     /// use binwalk::extractors::common::Chroot;
     ///
     /// let chroot_dir = std::path::Path::new(&std::env::temp_dir())
-    ///     .join("binwalk_symlink_test")
+    ///     .join("binwalk_unit_tests")
     ///     .display()
     ///     .to_string();
     ///
     /// let symlink_name = "symlink";
     /// let target_name = "target";
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
-    /// let expected_symlink_path = std::path::Path::new(&chroot_dir).join(symlink_name);
-    /// # #[cfg(not(target_arch = "wasm32"))]
-    /// let expected_target_path = std::path::Path::new(&chroot_dir).join(target_name);
-    ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// let chroot = Chroot::new(Some(&chroot_dir));
     ///
-    /// # #[cfg(not(target_arch = "wasm32"))]
     /// chroot.create_file(target_name, b"AAAA");
     ///
     /// assert_eq!(chroot.create_symlink(symlink_name, target_name), true);
-    /// # #[cfg(not(target_arch = "wasm32"))]
-    /// assert!(std::fs::symlink_metadata(expected_symlink_path).unwrap().file_type().is_symlink());
-    /// # #[cfg(not(target_arch = "wasm32"))]
+    /// assert!(std::fs::symlink_metadata(std::path::Path::new(&chroot_dir).join(symlink_name)).unwrap().file_type().is_symlink());
     /// # let _ = std::fs::remove_dir_all(&chroot_dir);
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
