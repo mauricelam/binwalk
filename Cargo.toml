@@ -37,19 +37,11 @@ walkdir = "2.5.0"
 threadpool = "1.8.1"
 delink = { git = "https://github.com/devttys0/delink" }
 plotly = { version = "0.13.1", features = ["kaleido", "kaleido_download"] }
+uuid = { version = "1.17.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
 plotly = { version = "0.13.1" }
-
-[dependencies.uuid]
-version = "1.17.0"
-features = [
-    "v4",                # Lets you generate random UUIDs
-    "fast-rng",          # Use a faster (but still sufficiently random) RNG
-    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
-    "js",
-]
+uuid = { version = "1.17.0", features = ["v4", "fast-rng", "macro-diagnostics", "js"] }
 
 [profile.release]
 lto = true

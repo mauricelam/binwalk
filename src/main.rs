@@ -1,13 +1,25 @@
-#![cfg(not(target_arch = "wasm32"))]
+#[cfg(target_arch = "wasm32")]
+compile_error!("The binwalk CLI is not supported on WASM targets. Use the binwalk library instead.");
+
+#[cfg(not(target_arch = "wasm32"))]
 use binwalk::AnalysisResults;
+#[cfg(not(target_arch = "wasm32"))]
 use log::{debug, error, info};
+#[cfg(not(target_arch = "wasm32"))]
 use std::collections::VecDeque;
+#[cfg(not(target_arch = "wasm32"))]
 use std::panic;
+#[cfg(not(target_arch = "wasm32"))]
 use std::process;
+#[cfg(not(target_arch = "wasm32"))]
 use std::process::ExitCode;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::mpsc;
+#[cfg(not(target_arch = "wasm32"))]
 use std::thread;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time;
+#[cfg(not(target_arch = "wasm32"))]
 use threadpool::ThreadPool;
 
 mod binwalk;
@@ -21,6 +33,7 @@ mod magic;
 mod signatures;
 mod structures;
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> ExitCode {
     // File name used when reading from stdin
     const STDIN: &str = "stdin";
@@ -252,7 +265,11 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
+#[cfg(target_arch = "wasm32")]
+fn main() {}
+
 /// Returns true if the specified results should be displayed to screen
+#[cfg(not(target_arch = "wasm32"))]
 fn should_display(results: &AnalysisResults, file_count: usize, verbose: bool) -> bool {
     let mut display_results: bool = false;
 
@@ -276,6 +293,7 @@ fn should_display(results: &AnalysisResults, file_count: usize, verbose: bool) -
 }
 
 /// Spawn a worker thread to analyze a file
+#[cfg(not(target_arch = "wasm32"))]
 fn spawn_worker(
     pool: &ThreadPool,
     bw: binwalk::Binwalk,
@@ -317,6 +335,7 @@ fn spawn_worker(
 /// Returns the number of carved files created.
 /// Note that unknown blocks of file data are also carved to disk, so the number of files
 /// created may be larger than the number of results defined in results.file_map.
+#[cfg(not(target_arch = "wasm32"))]
 fn carve_file_map(file_data: &[u8], results: &binwalk::AnalysisResults) -> usize {
     let mut carve_count: usize = 0;
     let mut last_known_offset: usize = 0;
@@ -369,6 +388,7 @@ fn carve_file_map(file_data: &[u8], results: &binwalk::AnalysisResults) -> usize
 }
 
 /// Carves a block of file data to a new file on disk
+#[cfg(not(target_arch = "wasm32"))]
 fn carve_file_data_to_disk(
     source_file_path: &str,
     file_data: &[u8],

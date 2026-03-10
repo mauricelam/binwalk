@@ -1,46 +1,50 @@
-# Binwalk WASM
+# Binwalk for WebAssembly (Browser)
 
-This document summarizes the changes made to make `binwalk` compilable for the `wasm32-unknown-unknown` target, suitable for browser environments.
+This project is now compilable for the `wasm32-unknown-unknown` target, allowing it to be used in web browsers.
 
-## Compilation
+## Building for WASM
 
-To compile the library for WASM, use the following command:
+To build the library for WebAssembly:
 
 ```bash
-RUSTFLAGS="--cfg=getrandom_backend=\"wasm_js\"" cargo build --lib --target wasm32-unknown-unknown
+RUSTFLAGS="--cfg=getrandom_backend=\"wasm_js\"" cargo build --target wasm32-unknown-unknown --release
 ```
 
-Note: The `wasm_js` flag for `getrandom` is required for WASM targets in the browser to provide a source of entropy.
+### Why `getrandom_backend="wasm_js"`?
 
-## Supported Functionality
+The `getrandom` crate (v0.3), used by `uuid`, requires explicit backend selection when targeting `wasm32-unknown-unknown`.
 
-The following functionalities are preserved in the WASM build:
+Since WebAssembly (without WASI) does not provide a standard host entropy source that the Rust standard library can automatically discover, you must explicitly tell `getrandom` to use the browser's JavaScript-based entropy source (`crypto.getRandomValues()`). This is done by passing the `--cfg=getrandom_backend="wasm_js"` flag to the compiler.
 
-- **Signature Scanning**: The core Aho-Corasick scanning engine is fully functional.
-- **Signature Validation**: Most signature parsers still perform validation using internal, portable extractors (e.g., `gzip`, `zlib`, `lzma`, `bzip2`, `bmp`, `gif`, `jpeg`, `png`). This ensures high-confidence results even in the browser.
-- **Structural Parsing**: All structural parsers are available, with fixes applied to support 32-bit architectures.
+## Functionality on WASM
 
-## Limitations on WASM
+When compiled for WebAssembly, certain non-portable features are conditionally compiled out or stubbed:
 
-To support the browser environment, certain features have been conditionally compiled out or stubbed:
+1.  **CLI:** The command-line interface in `src/main.rs` is disabled. Attempting to build the binary for WASM will result in a compile-time error.
+2.  **Filesystem I/O:** `std::fs` operations are mostly no-ops or return errors on WASM.
+3.  **Subprocesses:** External extraction utilities (calling `Command::new`) are disabled.
+4.  **Multithreading:** The CLI's multithreaded scanning is not available.
+5.  **Plotting:** Entropy plotting (which depends on `plotly` and `kaleido`) is disabled.
 
-- **CLI Binary**: `src/main.rs` is excluded from WASM builds as it relies heavily on terminal I/O and the local filesystem.
-- **Extraction to Disk**: Actual extraction of files to the local filesystem is disabled. The `Binwalk::extract` and `Binwalk::analyze` (file-based) methods are gated out.
-- **External Extractors**: Support for external extraction utilities (like `7z`, `tar`, etc.) is removed.
-- **Filesystem Operations**: The `Chroot` and file carving logic in `src/extractors/common.rs` act as no-ops or return success without performing actual I/O.
-- **Entropy Plotting**: The `entropy::plot` function is a no-op on WASM as it depends on `plotly` features that are not portable.
-- **Non-portable Dependencies**: Dependencies such as `termsize`, `walkdir`, `threadpool`, and `delink` are gated out for WASM targets.
+### What works?
 
-## Usage in the Browser
+-   **Core Scanning:** The Aho-Corasick based signature scanning works fully in memory.
+-   **Signature Validation:** All internal signature parsers and validation logic are functional.
+-   **In-Memory Extraction:** Internal extractors that perform decompression or data manipulation in memory are functional.
 
-The primary interface for WASM is `Binwalk::scan` or `Binwalk::analyze_buf`. You can provide a `&[u8]` buffer of the data to be analyzed and receive a list of identified signatures.
+## Library Usage
+
+In a browser environment, you should use `binwalk` as a library:
 
 ```rust
 use binwalk::Binwalk;
 
+// Initialize binwalker
 let binwalker = Binwalk::new();
-let data: &[u8] = ...; // Your data buffer
-let results = binwalker.scan(data);
+
+// Scan a buffer (e.g., from a File object or Fetch API)
+let file_data: Vec<u8> = ...;
+let results = binwalker.scan(&file_data);
 
 for result in results {
     println!("Found {} at offset {:#X}", result.description, result.offset);

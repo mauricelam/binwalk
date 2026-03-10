@@ -1,7 +1,6 @@
 //! Common Functions
 use chrono::prelude::DateTime;
 use log::{debug, error};
-#[cfg(not(target_arch = "wasm32"))]
 use std::fs::File;
 use std::io::Read;
 
@@ -13,18 +12,18 @@ use std::io::Read;
 /// # fn main() { #[allow(non_snake_case)] fn _doctest_main_src_common_rs_11_0() -> Result<(), Box<dyn std::error::Error>> {
 /// use binwalk::common::read_input;
 ///
+/// # #[cfg(not(target_arch = "wasm32"))]
 /// let file_data = read_input("/etc/passwd", false)?;
+/// # #[cfg(not(target_arch = "wasm32"))]
 /// assert!(file_data.len() > 0);
 /// # Ok(())
 /// # } _doctest_main_src_common_rs_11_0(); }
 /// ```
-#[cfg(not(target_arch = "wasm32"))]
 pub fn read_input(file: impl Into<String>, stdin: bool) -> Result<Vec<u8>, std::io::Error> {
     if stdin { read_stdin() } else { read_file(file) }
 }
 
 /// Read data from standard input and return its contents.
-#[cfg(not(target_arch = "wasm32"))]
 pub fn read_stdin() -> Result<Vec<u8>, std::io::Error> {
     let mut stdin_data = Vec::new();
 
@@ -48,12 +47,13 @@ pub fn read_stdin() -> Result<Vec<u8>, std::io::Error> {
 /// # fn main() { #[allow(non_snake_case)] fn _doctest_main_src_common_rs_48_0() -> Result<(), Box<dyn std::error::Error>> {
 /// use binwalk::common::read_file;
 ///
+/// # #[cfg(not(target_arch = "wasm32"))]
 /// let file_data = read_file("/etc/passwd")?;
+/// # #[cfg(not(target_arch = "wasm32"))]
 /// assert!(file_data.len() > 0);
 /// # Ok(())
 /// # } _doctest_main_src_common_rs_48_0(); }
 /// ```
-#[cfg(not(target_arch = "wasm32"))]
 pub fn read_file(file: impl Into<String>) -> Result<Vec<u8>, std::io::Error> {
     let mut file_data = Vec::new();
     let file_path = file.into();

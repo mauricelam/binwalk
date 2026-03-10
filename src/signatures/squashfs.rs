@@ -25,6 +25,7 @@ pub fn squashfs_magic() -> Vec<Vec<u8>> {
 
 /// Responsible for parsing and validating a suspected SquashFS image header
 pub fn squashfs_parser(file_data: &[u8], offset: usize) -> Result<SignatureResult, SignatureError> {
+    #[cfg(not(target_arch = "wasm32"))]
     const SQUASHFSV4: usize = 4;
 
     let squashfs_compression_types = HashMap::from([

@@ -1,4 +1,6 @@
-use crate::extractors::common::{Chroot, ExtractionResult, Extractor, ExtractorType};
+use crate::extractors::common::{ExtractionResult, Extractor, ExtractorType};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::extractors::common::Chroot;
 use crate::structures::mh01::parse_mh01_header;
 
 /// Defines the internal extractor function for carving out MH01 firmware images

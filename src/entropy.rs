@@ -1,6 +1,7 @@
-use crate::common::read_input;
 use entropy::shannon_entropy;
+#[cfg(not(target_arch = "wasm32"))]
 use plotly::layout::{Axis, Layout};
+#[cfg(not(target_arch = "wasm32"))]
 use plotly::{Plot, Scatter};
 #[cfg(not(target_arch = "wasm32"))]
 use plotly::ImageFormat;
@@ -23,7 +24,7 @@ pub struct FileEntropy {
 }
 
 /// Splits the supplied data up into blocks and calculates the entropy of each block.
-fn blocks(data: &[u8]) -> Vec<BlockEntropy> {
+pub fn blocks(data: &[u8]) -> Vec<BlockEntropy> {
     const BLOCK_COUNT: usize = 2048;
 
     let mut offset: usize = 0;
@@ -33,6 +34,10 @@ fn blocks(data: &[u8]) -> Vec<BlockEntropy> {
     } else {
         data.len() / BLOCK_COUNT
     };
+
+    if block_size == 0 {
+        return vec![];
+    }
 
     let mut chunker = data.chunks(block_size);
     let mut entropy_blocks: Vec<BlockEntropy> = vec![];
@@ -58,62 +63,63 @@ fn blocks(data: &[u8]) -> Vec<BlockEntropy> {
     entropy_blocks
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 pub fn plot(
     file_path: impl Into<String>,
     stdin: bool,
     out_file: Option<String>,
 ) -> Result<FileEntropy, EntropyError> {
-    let mut x: Vec<usize> = Vec::new();
-    let mut y: Vec<f32> = Vec::new();
-    let target_file: String = file_path.into();
-    let mut file_entropy = FileEntropy {
-        file: target_file.clone(),
-        ..Default::default()
-    };
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use crate::common::read_input;
+        let mut x: Vec<usize> = Vec::new();
+        let mut y: Vec<f32> = Vec::new();
+        let target_file: String = file_path.into();
+        let mut file_entropy = FileEntropy {
+            file: target_file.clone(),
+            ..Default::default()
+        };
 
-    // Read in the target file data
-    if let Ok(file_data) = read_input(&target_file, stdin) {
-        // Calculate the entropy of each file block
-        file_entropy.blocks = blocks(&file_data);
+        // Read in the target file data
+        if let Ok(file_data) = read_input(&target_file, stdin) {
+            // Calculate the entropy of each file block
+            file_entropy.blocks = blocks(&file_data);
 
-        for block in &file_entropy.blocks {
-            x.push(block.start);
-            x.push(block.end);
-            y.push(block.entropy);
-            y.push(block.entropy);
-        }
-
-        let mut plot = Plot::new();
-        let trace = Scatter::new(x, y);
-        let layout = Layout::new()
-            .title("Entropy Graph")
-            .x_axis(Axis::new().title("File Offset"))
-            .y_axis(Axis::new().title("Entropy").range(vec![0, 8]));
-
-        plot.add_trace(trace);
-        plot.set_layout(layout);
-
-        match out_file {
-            None => plot.show(),
-            Some(out_file_name) => {
-                // TODO: Switch to plotly_static, which is the recommended way to do this
-                #[allow(deprecated)]
-                plot.write_image(&out_file_name, ImageFormat::PNG, 2048, 1024, 1.0);
+            for block in &file_entropy.blocks {
+                x.push(block.start);
+                x.push(block.end);
+                y.push(block.entropy);
+                y.push(block.entropy);
             }
+
+            let mut plot = Plot::new();
+            let trace = Scatter::new(x, y);
+            let layout = Layout::new()
+                .title("Entropy Graph")
+                .x_axis(Axis::new().title("File Offset"))
+                .y_axis(Axis::new().title("Entropy").range(vec![0, 8]));
+
+            plot.add_trace(trace);
+            plot.set_layout(layout);
+
+            match out_file {
+                None => plot.show(),
+                Some(out_file_name) => {
+                    // TODO: Switch to plotly_static, which is the recommended way to do this
+                    #[allow(deprecated)]
+                    plot.write_image(&out_file_name, ImageFormat::PNG, 2048, 1024, 1.0);
+                }
+            }
+
+            return Ok(file_entropy);
         }
 
-        return Ok(file_entropy);
+        Err(EntropyError)
     }
-
-    Err(EntropyError)
-}
-
-#[cfg(target_arch = "wasm32")]
-pub fn plot(
-    _file_path: impl Into<String>,
-    _stdin: bool,
-    _out_file: Option<String>,
-) -> Result<FileEntropy, EntropyError> {
-    Err(EntropyError)
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = file_path;
+        let _ = stdin;
+        let _ = out_file;
+        Err(EntropyError)
+    }
 }

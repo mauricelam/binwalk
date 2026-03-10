@@ -1,4 +1,6 @@
-use crate::extractors::common::{Chroot, ExtractionResult, Extractor, ExtractorType};
+use crate::extractors::common::{ExtractionResult, Extractor, ExtractorType};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::extractors::common::Chroot;
 
 /// Defines the internal extractor function for decrypting known encrypted firmware
 ///
@@ -38,6 +40,7 @@ pub fn encfw_decrypt(
     #[cfg(not(target_arch = "wasm32"))]
     const OUTPUT_FILE_NAME: &str = "decrypted.bin";
 
+    #[allow(unused_mut)]
     let mut result = ExtractionResult {
         ..Default::default()
     };
@@ -57,9 +60,7 @@ pub fn encfw_decrypt(
 
     #[cfg(target_arch = "wasm32")]
     {
-        let _ = file_data;
-        let _ = offset;
-        let _ = output_directory;
+        let _ = (file_data, offset, output_directory);
     }
 
     result

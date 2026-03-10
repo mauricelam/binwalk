@@ -16,10 +16,12 @@
 //!    println!("{:#?}", result);
 //! }
 //! ```
-mod binwalk;
+pub mod binwalk;
 pub mod common;
+pub mod display;
+pub mod entropy;
 pub mod extractors;
 mod magic;
 pub mod signatures;
 pub mod structures;
-pub use binwalk::{AnalysisResults, Binwalk, BinwalkError};
+pub use crate::binwalk::{AnalysisResults, Binwalk, BinwalkError};
