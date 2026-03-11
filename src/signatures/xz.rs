@@ -1,6 +1,7 @@
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
+
 use crate::common::is_offset_safe;
 use crate::extractors::lzma::lzma_decompress;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::extractors::sevenzip::sevenzip_extractor;
 use crate::signatures::common::{CONFIDENCE_HIGH, SignatureError, SignatureResult};
 use crate::structures::xz::parse_xz_header;

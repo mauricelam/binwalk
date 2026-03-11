@@ -1,42 +1,30 @@
 #[cfg(target_arch = "wasm32")]
-compile_error!("The binwalk CLI is not supported on WASM targets. Use the binwalk library instead.");
+compile_error!(
+    "The binwalk CLI is not supported on WASM targets. Use the binwalk library instead."
+);
 
-#[cfg(not(target_arch = "wasm32"))]
+use binwalk::AnalysisResults;
+use log::{debug, error, info};
+use std::collections::VecDeque;
+use std::panic;
+use std::process;
+use std::process::ExitCode;
+use std::sync::mpsc;
+use std::thread;
+use std::time;
+use threadpool::ThreadPool;
+
 mod binwalk;
-#[cfg(not(target_arch = "wasm32"))]
 mod cliparser;
-#[cfg(not(target_arch = "wasm32"))]
 mod common;
-#[cfg(not(target_arch = "wasm32"))]
 mod display;
-#[cfg(not(target_arch = "wasm32"))]
 mod entropy;
-#[cfg(not(target_arch = "wasm32"))]
 mod extractors;
-#[cfg(not(target_arch = "wasm32"))]
 mod json;
-#[cfg(not(target_arch = "wasm32"))]
 mod magic;
-#[cfg(not(target_arch = "wasm32"))]
 mod signatures;
-#[cfg(not(target_arch = "wasm32"))]
 mod structures;
 
-#[cfg(not(target_arch = "wasm32"))]
-use {
-    binwalk::AnalysisResults,
-    log::{debug, error, info},
-    std::collections::VecDeque,
-    std::panic,
-    std::process,
-    std::process::ExitCode,
-    std::sync::mpsc,
-    std::thread,
-    std::time,
-    threadpool::ThreadPool,
-};
-
-#[cfg(not(target_arch = "wasm32"))]
 fn main() -> ExitCode {
     // File name used when reading from stdin
     const STDIN: &str = "stdin";
@@ -269,7 +257,6 @@ fn main() -> ExitCode {
 }
 
 /// Returns true if the specified results should be displayed to screen
-#[cfg(not(target_arch = "wasm32"))]
 fn should_display(results: &AnalysisResults, file_count: usize, verbose: bool) -> bool {
     let mut display_results: bool = false;
 
@@ -293,7 +280,6 @@ fn should_display(results: &AnalysisResults, file_count: usize, verbose: bool) -
 }
 
 /// Spawn a worker thread to analyze a file
-#[cfg(not(target_arch = "wasm32"))]
 fn spawn_worker(
     pool: &ThreadPool,
     bw: binwalk::Binwalk,
@@ -335,7 +321,6 @@ fn spawn_worker(
 /// Returns the number of carved files created.
 /// Note that unknown blocks of file data are also carved to disk, so the number of files
 /// created may be larger than the number of results defined in results.file_map.
-#[cfg(not(target_arch = "wasm32"))]
 fn carve_file_map(file_data: &[u8], results: &binwalk::AnalysisResults) -> usize {
     let mut carve_count: usize = 0;
     let mut last_known_offset: usize = 0;
@@ -388,7 +373,6 @@ fn carve_file_map(file_data: &[u8], results: &binwalk::AnalysisResults) -> usize
 }
 
 /// Carves a block of file data to a new file on disk
-#[cfg(not(target_arch = "wasm32"))]
 fn carve_file_data_to_disk(
     source_file_path: &str,
     file_data: &[u8],
@@ -416,6 +400,3 @@ fn carve_file_data_to_disk(
 
     true
 }
-
-#[cfg(target_arch = "wasm32")]
-fn main() {}

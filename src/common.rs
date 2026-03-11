@@ -12,9 +12,7 @@ use std::io::Read;
 /// # fn main() { #[allow(non_snake_case)] fn _doctest_main_src_common_rs_11_0() -> Result<(), Box<dyn std::error::Error>> {
 /// use binwalk::common::read_input;
 ///
-/// # #[cfg(not(target_arch = "wasm32"))]
 /// let file_data = read_input("/etc/passwd", false)?;
-/// # #[cfg(not(target_arch = "wasm32"))]
 /// assert!(file_data.len() > 0);
 /// # Ok(())
 /// # } _doctest_main_src_common_rs_11_0(); }
@@ -47,9 +45,7 @@ pub fn read_stdin() -> Result<Vec<u8>, std::io::Error> {
 /// # fn main() { #[allow(non_snake_case)] fn _doctest_main_src_common_rs_48_0() -> Result<(), Box<dyn std::error::Error>> {
 /// use binwalk::common::read_file;
 ///
-/// # #[cfg(not(target_arch = "wasm32"))]
 /// let file_data = read_file("/etc/passwd")?;
-/// # #[cfg(not(target_arch = "wasm32"))]
 /// assert!(file_data.len() > 0);
 /// # Ok(())
 /// # } _doctest_main_src_common_rs_48_0(); }

@@ -1,5 +1,6 @@
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
+
 use crate::common::epoch_to_string;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::extractors::squashfs::{
     squashfs_be_extractor, squashfs_le_extractor, squashfs_v4_be_extractor,
 };
@@ -25,7 +26,6 @@ pub fn squashfs_magic() -> Vec<Vec<u8>> {
 
 /// Responsible for parsing and validating a suspected SquashFS image header
 pub fn squashfs_parser(file_data: &[u8], offset: usize) -> Result<SignatureResult, SignatureError> {
-    #[cfg_attr(target_arch = "wasm32", allow(unused))]
     const SQUASHFSV4: usize = 4;
 
     let squashfs_compression_types = HashMap::from([
@@ -100,7 +100,8 @@ pub fn squashfs_parser(file_data: &[u8], offset: usize) -> Result<SignatureResul
                                     if squashfs_header.endianness == "little" {
                                         result.preferred_extractor = Some(squashfs_le_extractor());
                                     } else if squashfs_header.major_version == SQUASHFSV4 {
-                                        result.preferred_extractor = Some(squashfs_v4_be_extractor());
+                                        result.preferred_extractor =
+                                            Some(squashfs_v4_be_extractor());
                                     } else {
                                         result.preferred_extractor = Some(squashfs_be_extractor());
                                     }

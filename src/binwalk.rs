@@ -1,9 +1,12 @@
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
 //! Primary Binwalk interface.
 
 use aho_corasick::AhoCorasick;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path;
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -51,10 +54,7 @@ pub struct AnalysisResults {
 /// use binwalk::Binwalk;
 ///
 /// let target_file = "/bin/ls";
-/// let data_to_scan = match std::fs::read(target_file) {
-///     Ok(data) => data,
-///     Err(_) => vec![0u8; 0],
-/// };
+/// let data_to_scan = std::fs::read(target_file).expect("Unable to read file");
 ///
 /// let binwalker = Binwalk::new();
 ///
@@ -129,7 +129,6 @@ impl Binwalk {
     /// # Ok(binwalker)
     /// # } _doctest_main_src_binwalk_rs_102_0(); }
     /// ```
-    #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
     pub fn configure(
         target_file_name: Option<String>,
         output_directory: Option<String>,
@@ -147,7 +146,7 @@ impl Binwalk {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 // Set the target file path, make it an absolute path
-                match std::path::absolute(&target_file) {
+                match path::absolute(&target_file) {
                     Err(_) => {
                         return Err(BinwalkError::new(&format!(
                             "Failed to get absolute path for '{target_file}'"
@@ -161,7 +160,7 @@ impl Binwalk {
                 // If an output extraction directory was also specified, initialize it
                 if let Some(extraction_directory) = output_directory {
                     // Make the extraction directory an absolute path
-                    match std::path::absolute(&extraction_directory) {
+                    match path::absolute(&extraction_directory) {
                         Err(_) => {
                             return Err(BinwalkError::new(&format!(
                                 "Failed to get absolute path for '{extraction_directory}'"
@@ -258,10 +257,7 @@ impl Binwalk {
     /// use binwalk::Binwalk;
     ///
     /// let target_file = "/bin/ls";
-    /// let data_to_scan = match std::fs::read(target_file) {
-    ///     Ok(data) => data,
-    ///     Err(_) => vec![0u8; 0],
-    /// };
+    /// let data_to_scan = std::fs::read(target_file).expect("Unable to read file");
     ///
     /// let binwalker = Binwalk::new();
     ///
@@ -271,9 +267,7 @@ impl Binwalk {
     ///     println!("{:#X}  {}", result.offset, result.description);
     /// }
     ///
-    /// # if !data_to_scan.is_empty() {
     /// assert!(signature_results.len() > 0);
-    /// # }
     /// ```
     pub fn scan(&self, file_data: &[u8]) -> Vec<signatures::common::SignatureResult> {
         const FILE_START_OFFSET: usize = 0;
@@ -592,7 +586,7 @@ impl Binwalk {
     ///     .display()
     ///     .to_string();
     ///
-    /// # let _ = std::fs::remove_dir_all(&extraction_directory);
+    /// # std::fs::remove_dir_all(&extraction_directory);
     /// let binwalker = Binwalk::configure(Some(target_path),
     ///                                    Some(extraction_directory.clone()),
     ///                                    None,
@@ -600,15 +594,11 @@ impl Binwalk {
     ///                                    None,
     ///                                    false)?;
     ///
-    /// let file_data = match std::fs::read(&binwalker.base_target_file) {
-    ///     Ok(data) => data,
-    ///     Err(_) => vec![0u8; 0],
-    /// };
+    /// let file_data = std::fs::read(&binwalker.base_target_file).expect("Unable to read file");
     ///
     /// let scan_results = binwalker.scan(&file_data);
     /// let extraction_results = binwalker.extract(&file_data, &binwalker.base_target_file, &scan_results);
     ///
-    /// # if !file_data.is_empty() {
     /// assert_eq!(scan_results.len(), 1);
     /// assert_eq!(extraction_results.len(),  1);
     /// assert_eq!(std::path::Path::new(&extraction_directory)
@@ -616,8 +606,7 @@ impl Binwalk {
     ///     .join("0")
     ///     .join("decompressed.bin")
     ///     .exists(), true);
-    /// # }
-    /// # let _ = std::fs::remove_dir_all(&extraction_directory);
+    /// # std::fs::remove_dir_all(&extraction_directory);
     /// # Ok(binwalker)
     /// # } _doctest_main_src_binwalk_rs_529_0(); }
     /// ```
@@ -712,9 +701,9 @@ impl Binwalk {
     ///     .display()
     ///     .to_string();
     ///
-    /// let file_data = common::read_file(&target_path).unwrap_or_else(|_| vec![0u8; 0]);
+    /// let file_data = common::read_file(&target_path).expect("Failed to read file data");
     ///
-    /// # let _ = std::fs::remove_dir_all(&extraction_directory);
+    /// # std::fs::remove_dir_all(&extraction_directory);
     /// let binwalker = Binwalk::configure(Some(target_path),
     ///                                    Some(extraction_directory.clone()),
     ///                                    None,
@@ -724,7 +713,6 @@ impl Binwalk {
     ///
     /// let analysis_results = binwalker.analyze_buf(&file_data, &binwalker.base_target_file, true);
     ///
-    /// # if !file_data.is_empty() {
     /// assert_eq!(analysis_results.file_map.len(), 1);
     /// assert_eq!(analysis_results.extractions.len(),  1);
     /// assert_eq!(std::path::Path::new(&extraction_directory)
@@ -732,8 +720,7 @@ impl Binwalk {
     ///     .join("0")
     ///     .join("decompressed.bin")
     ///     .exists(), true);
-    /// # }
-    /// # let _ = std::fs::remove_dir_all(&extraction_directory);
+    /// # std::fs::remove_dir_all(&extraction_directory);
     /// # Ok(binwalker)
     /// # } _doctest_main_src_binwalk_rs_672_0(); }
     /// ```
@@ -789,7 +776,7 @@ impl Binwalk {
     ///     .display()
     ///     .to_string();
     ///
-    /// # let _ = std::fs::remove_dir_all(&extraction_directory);
+    /// # std::fs::remove_dir_all(&extraction_directory);
     /// let binwalker = Binwalk::configure(Some(target_path),
     ///                                    Some(extraction_directory.clone()),
     ///                                    None,
@@ -799,7 +786,6 @@ impl Binwalk {
     ///
     /// let analysis_results = binwalker.analyze(&binwalker.base_target_file, true);
     ///
-    /// # if !analysis_results.file_map.is_empty() {
     /// assert_eq!(analysis_results.file_map.len(), 1);
     /// assert_eq!(analysis_results.extractions.len(),  1);
     /// assert_eq!(std::path::Path::new(&extraction_directory)
@@ -807,8 +793,7 @@ impl Binwalk {
     ///     .join("0")
     ///     .join("decompressed.bin")
     ///     .exists(), true);
-    /// # }
-    /// # let _ = std::fs::remove_dir_all(&extraction_directory);
+    /// # std::fs::remove_dir_all(&extraction_directory);
     /// # Ok(binwalker)
     /// # } _doctest_main_src_binwalk_rs_745_0(); }
     /// ```
@@ -826,36 +811,6 @@ impl Binwalk {
 
         self.analyze_buf(&file_data, &file_path, do_extraction)
     }
-
-    /// Calculate the entropy of a file on disk.
-    #[allow(dead_code)]
-    pub fn entropy(
-        &self,
-        target_file: impl Into<String>,
-    ) -> Result<Vec<crate::entropy::BlockEntropy>, crate::entropy::EntropyError> {
-        let file_path = target_file.into();
-        let file_data = read_file(&file_path).map_err(|_| crate::entropy::EntropyError)?;
-        Ok(crate::entropy::blocks(&file_data))
-    }
-
-    /// Plot the entropy of a file.
-    #[allow(dead_code)]
-    pub fn plot_entropy(
-        &self,
-        _entropy_results: &Vec<crate::entropy::BlockEntropy>,
-    ) -> Result<(), crate::entropy::EntropyError> {
-        // This is a stub for plotting entropy, as the logic is currently in entropy::plot
-        // which takes a file path. Let's adjust main.rs to use entropy::plot if needed,
-        // or implement the plotting logic here.
-        Ok(())
-    }
-
-    /// Check if an extraction utility exists.
-    #[allow(dead_code)]
-    pub fn extraction_utility_exists(&self, _signature_id: &str) -> bool {
-        // Stub
-        true
-    }
 }
 
 /// Initializes the extraction output directory
@@ -865,7 +820,7 @@ fn init_extraction_directory(
     extraction_directory: &str,
 ) -> Result<String, std::io::Error> {
     // Create the output directory, equivalent of mkdir -p
-    match std::fs::create_dir_all(extraction_directory) {
+    match fs::create_dir_all(extraction_directory) {
         Ok(_) => {
             debug!("Created base output directory: '{extraction_directory}'");
         }
@@ -876,18 +831,18 @@ fn init_extraction_directory(
     }
 
     // Create a Path for the target file
-    let target_path = std::path::Path::new(&target_file);
+    let target_path = path::Path::new(&target_file);
 
     // Build a symlink path to the target file in the extraction directory
     let link_target_path_str = format!(
         "{}{}{}",
         extraction_directory,
-        std::path::MAIN_SEPARATOR,
-        target_path.file_name().unwrap_or_default().to_str().unwrap_or_default()
+        path::MAIN_SEPARATOR,
+        target_path.file_name().unwrap().to_str().unwrap()
     );
 
     // Create a path for the symlink target path
-    let link_path = std::path::Path::new(&link_target_path_str);
+    let link_path = path::Path::new(&link_target_path_str);
 
     if link_path.exists() {
         return Ok(link_target_path_str);
@@ -931,11 +886,6 @@ fn init_extraction_directory(
                 return Err(e);
             }
         }
-    }
-
-    #[cfg(not(any(unix, windows)))]
-    {
-        Ok(link_target_path_str)
     }
 }
 

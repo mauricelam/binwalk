@@ -1,6 +1,6 @@
-use crate::extractors::common::{ExtractionResult, Extractor, ExtractorType};
-#[cfg(not(target_arch = "wasm32"))]
-use crate::extractors::common::Chroot;
+#![cfg_attr(target_arch = "wasm32", allow(unused_imports))]
+
+use crate::extractors::common::{Chroot, ExtractionResult, Extractor, ExtractorType};
 
 /// Defines the internal extractor function for decrypting known encrypted firmware
 ///
@@ -32,36 +32,38 @@ pub fn encfw_extractor() -> Extractor {
 }
 
 /// Attempts to decrypt known encrypted firmware images
+#[cfg(not(target_arch = "wasm32"))]
 pub fn encfw_decrypt(
     file_data: &[u8],
     offset: usize,
     output_directory: Option<&str>,
 ) -> ExtractionResult {
-    #[cfg(not(target_arch = "wasm32"))]
     const OUTPUT_FILE_NAME: &str = "decrypted.bin";
 
-    #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
     let mut result = ExtractionResult {
         ..Default::default()
     };
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        if let Ok(decrypted_data) = delink::decrypt(&file_data[offset..]) {
-            result.success = true;
+    if let Ok(decrypted_data) = delink::decrypt(&file_data[offset..]) {
+        result.success = true;
 
-            // Write to file, if requested
-            if output_directory.is_some() {
-                let chroot = Chroot::new(output_directory);
-                result.success = chroot.create_file(OUTPUT_FILE_NAME, &decrypted_data);
-            }
+        // Write to file, if requested
+        if output_directory.is_some() {
+            let chroot = Chroot::new(output_directory);
+            result.success = chroot.create_file(OUTPUT_FILE_NAME, &decrypted_data);
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = (file_data, offset, output_directory);
-    }
-
     result
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn encfw_decrypt(
+    _file_data: &[u8],
+    _offset: usize,
+    _output_directory: Option<&str>,
+) -> ExtractionResult {
+    ExtractionResult {
+        ..Default::default()
+    }
 }

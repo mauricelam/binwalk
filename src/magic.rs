@@ -99,6 +99,7 @@ pub fn patterns() -> Vec<signatures::common::Signature> {
             magic: signatures::lzma::lzma_magic(),
             parser: signatures::lzma::lzma_parser,
             description: signatures::lzma::DESCRIPTION.to_string(),
+            //extractor: Some(extractors::sevenzip::sevenzip_extractor()),
             extractor: Some(extractors::lzma::lzma_extractor()),
         },
         // bmp
