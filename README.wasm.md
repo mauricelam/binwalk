@@ -27,19 +27,42 @@ When compiled for WebAssembly, certain non-portable features are conditionally c
 
 ### 2. Filesystem I/O
 - **Status:** Stubbed. `std::fs` operations are mostly no-ops or return errors.
-- **Details:** The `Chroot` struct in `src/extractors/common.rs` provides a unified interface for filesystem operations but its methods (like `create_file`, `create_directory`, `create_symlink`) do nothing on WASM.
+- **Why:** Standard filesystem access is not available in the browser's sandbox environment.
+- **Usages in Project:**
+    - **`src/common.rs`:** `read_file` and `read_input` for loading target files.
+    - **`src/binwalk.rs`:** `init_extraction_directory` for creating output folders and `analyze` for reading files from disk.
+    - **`src/extractors/common.rs`:** The `Chroot` struct (methods like `create_file`, `create_directory`, `create_symlink`, `carve_file`) and `get_extracted_files`.
+    - **`src/json.rs`:** `JsonLogger` for writing analysis results to a file.
+    - **`src/main.rs`:** Deleting temporary symlinks.
 - **Re-enabling:** Use the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) to allow the browser to interact with the local filesystem, or implement an in-memory virtual filesystem (e.g., using a crate like `memfs`) and map `Chroot` operations to it.
 
 ### 3. External Extractors (Subprocesses)
 - **Status:** Disabled. External extraction utilities that rely on `std::process::Command` are not supported.
-- **Details:** Many signatures (e.g., 7-zip, tar, squashfs, zstd) normally use external tools for extraction. These are currently set to `None` in `src/magic.rs` for WASM.
+- **Details:** The following external extractors are currently disabled:
+    - `7zz` (used for: 7-zip, zip, cpio, cramfs, apfs, efigpt, arj, iso9660)
+    - `tar` (used for: tarball)
+    - `sasquatch` / `sasquatch-v4be` (used for: squashfs)
+    - `zstd` (used for: zstd)
+    - `lzop` (used for: lzop)
+    - `lz4` (used for: lz4)
+    - `unrar` (used for: rar)
+    - `cabextract` (used for: cab)
+    - `jefferson` (used for: jffs2)
+    - `unyaffs` (used for: yaffs2)
+    - `ubireader_extract_images` / `ubireader_extract_files` (used for: ubi, ubifs)
+    - `srec_cat` (used for: srecord)
+    - `uefi-firmware-parser` (used for: uefi, pchrom)
+    - `dumpifs` (used for: qnx_ifs)
+    - `vmlinux-to-elf` (used for: linux_kernel)
+    - `tsk_recover` (used for: fat, ntfs, ext)
 - **Re-enabling:** External utilities can be replaced by:
     - **Internal WASM Implementations:** Compiling the C/C++ source of those utilities to WASM and linking them.
-    - **JS/WASM Libraries:** Calling out to existing JavaScript or WASM versions of these tools (e.g., `sqlglot` for SQL, `pako` for zlib).
+    - **JS/WASM Libraries:** Calling out to existing JavaScript or WASM versions of these tools.
 
 ### 4. Multithreading
 - **Status:** Disabled for scanning. The CLI's multithreaded architecture is not available.
 - **Why:** Rust's standard `std::thread` does not map directly to browser Web Workers without additional glue code like `wasm-bindgen-rayon` or `web-sys`.
+- **Impact:** Disabling multithreading primarily affects **speed** when scanning multiple files or performing deep recursive analysis. It does not reduce the **functionality** of the core scanning or extraction logic itself.
 - **Re-enabling:** Implement a worker-based pool using [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API). The library's `scan` and `extract` methods are currently single-threaded and can be called from within a Web Worker.
 
 ### 5. Entropy Plotting
